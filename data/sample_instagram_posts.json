@@ -1,0 +1,62 @@
+[
+  {
+    "postUrl": "https://www.instagram.com/reels/C5tE9T6uX9V/",
+    "caption": "POV: You're romanticizing your life in a new city. ✨ #maincharacter #travel #pov #lifestyle",
+    "hashtags": ["maincharacter", "travel", "pov", "lifestyle"],
+    "authorHandle": "urban_nomad",
+    "mediaType": "reel",
+    "scrapedAt": "2026-04-26T00:00:00Z",
+    "sourceType": "demo",
+    "engagement": { "likes": 1200000, "comments": 5000, "views": 10000000 }
+  },
+  {
+    "postUrl": "https://www.instagram.com/reels/C5tA-U9S_Pj/",
+    "caption": "The reality of 'hidden gems' in 2026. 💀😂 #expectationvsreality #travel #hiddengems #meme",
+    "hashtags": ["expectationvsreality", "travel", "hiddengems", "meme"],
+    "authorHandle": "travel_fails",
+    "mediaType": "reel",
+    "scrapedAt": "2026-04-26T00:00:00Z",
+    "sourceType": "demo",
+    "engagement": { "likes": 850000, "comments": 12000, "views": 5000000 }
+  },
+  {
+    "postUrl": "https://www.instagram.com/reels/C5s7o9qS_vj/",
+    "caption": "Trying the viral street food challenge! 🥔🔥 #foodie #streetfood #challenge #viral",
+    "hashtags": ["foodie", "streetfood", "challenge", "viral"],
+    "authorHandle": "food_explorer",
+    "mediaType": "reel",
+    "scrapedAt": "2026-04-26T00:00:00Z",
+    "sourceType": "demo",
+    "engagement": { "likes": 2500000, "comments": 45000, "views": 35000000 }
+  },
+  {
+    "postUrl": "https://www.instagram.com/p/C5pG9_uP9_x/",
+    "caption": "Airport style but make it comfortable. ✈️👟 #airportfit #travelstyle #fashion #ootd",
+    "hashtags": ["airportfit", "travelstyle", "fashion", "ootd"],
+    "authorHandle": "style_icon",
+    "mediaType": "post",
+    "scrapedAt": "2026-04-26T00:00:00Z",
+    "sourceType": "demo",
+    "engagement": { "likes": 450000, "comments": 2500, "views": 0 }
+  },
+  {
+    "postUrl": "https://www.instagram.com/reels/C5rT9_uX9z2/",
+    "caption": "The Coldplay rush is insane! 🎤✨ Who got tickets? #coldplay #concert #music #travelrush",
+    "hashtags": ["coldplay", "concert", "music", "travelrush"],
+    "authorHandle": "event_news",
+    "mediaType": "reel",
+    "scrapedAt": "2026-04-26T00:00:00Z",
+    "sourceType": "demo",
+    "engagement": { "likes": 980000, "comments": 35000, "views": 12000000 }
+  },
+  {
+    "postUrl": "https://www.instagram.com/p/C5qL8_uM9y1/",
+    "caption": "Global travel advisory: Stay safe and informed. 🙏 #news #safety #travelupdates",
+    "hashtags": ["news", "safety", "travelupdates"],
+    "authorHandle": "world_safety_net",
+    "mediaType": "post",
+    "scrapedAt": "2026-04-26T00:00:00Z",
+    "sourceType": "demo",
+    "engagement": { "likes": 120000, "comments": 15000, "views": 0 }
+  }
+]

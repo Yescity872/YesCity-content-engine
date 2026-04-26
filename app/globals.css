@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #53A9EF;
+  --brand-dark: #2B90E6;
+  --brand-light: #EBF6FD;
+  --bg: #0F1117;
+  --bg-card: #1A1D27;
+  --bg-card-hover: #1E2233;
+  --border: #2A2D3E;
+  --text-primary: #F0F2F8;
+  --text-secondary: #8B90A7;
+  --text-muted: #555870;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* ── Cards ── */
+  .card {
+    @apply rounded-xl border bg-[#1A1D27] border-[#2A2D3E] p-5 transition-all duration-200;
+  }
+  .card:hover {
+    @apply border-[#53A9EF]/30 bg-[#1E2233];
+  }
+  
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm
+           bg-[#53A9EF] hover:bg-[#2B90E6] text-white
+           transition-all duration-150 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm
+           bg-[#2A2D3E] hover:bg-[#353852] text-[#F0F2F8]
+           border border-[#2A2D3E] hover:border-[#53A9EF]/40
+           transition-all duration-150 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm
+           text-[#8B90A7] hover:text-[#F0F2F8] hover:bg-[#2A2D3E]
+           transition-all duration-150 cursor-pointer;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm
+           bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20
+           transition-all duration-150 cursor-pointer;
+  }
+
+  /* ── Form inputs ── */
+  .input {
+    @apply w-full px-3 py-2.5 rounded-lg text-sm
+           bg-[#0F1117] border border-[#2A2D3E]
+           text-[#F0F2F8] placeholder-[#555870]
+           focus:border-[#53A9EF] focus:ring-1 focus:ring-[#53A9EF]/30
+           transition-colors duration-150 outline-none;
+  }
+  .label {
+    @apply block text-xs font-medium text-[#8B90A7] mb-1.5;
+  }
+  .select {
+    @apply w-full px-3 py-2.5 rounded-lg text-sm
+           bg-[#0F1117] border border-[#2A2D3E]
+           text-[#F0F2F8]
+           focus:border-[#53A9EF] focus:ring-1 focus:ring-[#53A9EF]/30
+           transition-colors duration-150 outline-none cursor-pointer;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-blue { @apply badge bg-[#53A9EF]/10 text-[#53A9EF] border border-[#53A9EF]/20; }
+  .badge-green { @apply badge bg-green-500/10 text-green-400 border border-green-500/20; }
+  .badge-yellow { @apply badge bg-yellow-500/10 text-yellow-400 border border-yellow-500/20; }
+  .badge-red { @apply badge bg-red-500/10 text-red-400 border border-red-500/20; }
+  .badge-purple { @apply badge bg-purple-500/10 text-purple-400 border border-purple-500/20; }
+  .badge-gray { @apply badge bg-[#2A2D3E] text-[#8B90A7] border border-[#353852]; }
+
+  /* ── Section heading ── */
+  .section-title {
+    @apply text-lg font-bold text-[#F0F2F8] tracking-tight;
+  }
+  .section-sub {
+    @apply text-sm text-[#8B90A7] mt-0.5;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    @apply border-t border-[#2A2D3E] my-4;
+  }
+
+  /* ── Toast/Alert ── */
+  .alert-error {
+    @apply flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm;
+  }
+  .alert-success {
+    @apply flex items-start gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm;
+  }
+  .alert-info {
+    @apply flex items-start gap-3 p-4 rounded-xl bg-[#53A9EF]/10 border border-[#53A9EF]/20 text-[#53A9EF] text-sm;
+  }
+
+  /* Chat Specific */
+  .chat-container {
+    @apply flex flex-col h-full bg-[#0F111A];
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+}
