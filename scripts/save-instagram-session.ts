@@ -11,7 +11,19 @@ async function saveSession() {
   const storagePath = path.join(storageDir, "instagram-auth.json");
 
   console.log("🚀 Launching browser for manual Instagram login...");
-  const browser = await chromium.launch({ headless: false });
+  
+  let browser;
+  try {
+    // Try standard launch
+    browser = await chromium.launch({ headless: false });
+  } catch (err) {
+    console.log("⚠️ Standard launch failed, trying with --no-sandbox...");
+    browser = await chromium.launch({ 
+      headless: false,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+  }
+
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -23,9 +35,10 @@ async function saveSession() {
   console.log("Once you see your home feed, wait a few seconds...");
   console.log("--------------------------------------------------");
 
-  // Wait for an element that only appears when logged in (like the search icon or home icon)
+  // Wait for an element that only appears when logged in
   try {
-    await page.waitForSelector("svg[aria-label='Home']", { timeout: 300000 }); // 5 minutes timeout
+    // Look for common logged-in elements
+    await page.waitForSelector("svg[aria-label='Home'], svg[aria-label='Direct'], img[data-testid='user-avatar']", { timeout: 300000 }); 
     console.log("✅ Login detected!");
     
     // Extra wait for storage to settle

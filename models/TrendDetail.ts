@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, models, model } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IContentIdea {
   title: string;
@@ -6,16 +6,13 @@ export interface IContentIdea {
   hook: string;
   caption: string;
   cta: string;
-  sceneBreakdown: string;
+  sceneBreakdown: string[]; // Updated to array
   aiVideoPrompt: string;
 }
 
 export interface ITrendDetail extends Document {
-  sessionId: string;
-  trendId: string;
-  topic: string;
-  relatedPosts: any[]; 
-  relatedReels: any[]; 
+  topicId: string;
+  topicTitle: string;
   aiAnalysis: {
     whatItIs: string;
     whyTrending: string;
@@ -28,44 +25,29 @@ export interface ITrendDetail extends Document {
   createdAt: Date;
 }
 
-const contentIdeaSchema = new Schema(
-  {
-    title: { type: String, required: true },
-    conceptSummary: { type: String, required: true },
-    hook: { type: String, required: true },
-    caption: { type: String, required: true },
-    cta: { type: String, required: true },
-    sceneBreakdown: { type: String, required: true },
-    aiVideoPrompt: { type: String, required: true },
+const ContentIdeaSchema = new Schema({
+  title: { type: String, required: true },
+  conceptSummary: { type: String, required: true },
+  hook: { type: String, required: true },
+  caption: { type: String, required: true },
+  cta: { type: String, required: true },
+  sceneBreakdown: { type: [String], default: [] }, // Updated to array
+  aiVideoPrompt: { type: String, required: true },
+});
+
+const TrendDetailSchema = new Schema({
+  topicId: { type: String, required: true, unique: true },
+  topicTitle: { type: String, required: true },
+  aiAnalysis: {
+    whatItIs: String,
+    whyTrending: String,
+    howPeopleUsing: String,
+    brandSafetyNote: String,
+    yesCityAngle: String,
   },
-  { _id: false }
-);
+  postIdeas: [ContentIdeaSchema],
+  reelIdeas: [ContentIdeaSchema],
+  createdAt: { type: Date, default: Date.now },
+});
 
-const trendDetailSchema = new Schema<ITrendDetail>(
-  {
-    sessionId: { type: String, required: true, index: true },
-    trendId: { type: String, required: true, index: true },
-    topic: { type: String, required: true },
-    relatedPosts: { type: Schema.Types.Mixed, default: [] },
-    relatedReels: { type: Schema.Types.Mixed, default: [] },
-    aiAnalysis: {
-      whatItIs: { type: String, required: true },
-      whyTrending: { type: String, required: true },
-      howPeopleUsing: { type: String, required: true },
-      brandSafetyNote: { type: String, required: true },
-      yesCityAngle: { type: String, required: true },
-    },
-    postIdeas: { type: [contentIdeaSchema], default: [] },
-    reelIdeas: { type: [contentIdeaSchema], default: [] },
-    createdAt: { type: Date, default: Date.now },
-  },
-  {
-    collection: "trend_details",
-  }
-);
-
-const TrendDetail =
-  (models.TrendDetail as mongoose.Model<ITrendDetail>) ||
-  model<ITrendDetail>("TrendDetail", trendDetailSchema);
-
-export default TrendDetail;
+export default mongoose.models.TrendDetail || mongoose.model<ITrendDetail>("TrendDetail", TrendDetailSchema);

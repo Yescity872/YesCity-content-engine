@@ -47,54 +47,6 @@ export default function ChatAssistant() {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const handleTrendDiscovery = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
-
-    try {
-      const res = await fetch("/api/scrape/instagram", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: currentSession?._id }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      const data = await res.json();
-      console.log("Trend Discovery Response:", data);
-
-      if (data.success) {
-        setCurrentSession(data.session);
-        setLastSourceUsed(data.sourceUsed);
-        const content = data.sourceUsed === "fallback" 
-          ? "I couldn't find usable live results right now, so I loaded sample trend data for testing:" 
-          : "I've discovered some broad trends that we can adapt for YesCity:";
-        
-        const assistantMessage: Message = {
-          id: Date.now().toString(),
-          type: "assistant",
-          content,
-          data: data.session.trendCards,
-          dataType: "trends",
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        throw new Error(data.error || "Failed to find trends");
-      }
-    } catch (err: any) {
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        type: "assistant",
-        content: `Sorry, I encountered an error: ${err.message}. Please try again.`,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSend = async (overrideText?: string) => {
     const text = overrideText || input;
     if (!text.trim() || isLoading) return;
@@ -109,15 +61,32 @@ export default function ChatAssistant() {
     setInput("");
     
     const normalizedText = text.toLowerCase();
-    if (normalizedText.includes("current trends") || normalizedText.includes("discover trends") || normalizedText.includes("know trends")) {
-      await handleTrendDiscovery();
-    } else {
+    
+    // 1. Batch Rotation Detection (Asking for "more")
+    const isMoreRequest = normalizedText.includes("more") || normalizedText.includes("other") || normalizedText.includes("next");
+    const isDiscovery = normalizedText.includes("current trends") || normalizedText.includes("discover trends") || normalizedText.includes("know trends");
+
+    if (isDiscovery || (isMoreRequest && currentSession)) {
+      await handleTrendDiscovery(isMoreRequest);
+    } 
+    // 2. Custom Specific Trend Search Detection
+    else if (
+      normalizedText.includes("find") || 
+      normalizedText.includes("search") || 
+      normalizedText.includes("show") || 
+      normalizedText.includes("give me") || 
+      normalizedText.includes("about") ||
+      normalizedText.length > 3 // Assume short specific queries are topics
+    ) {
+      await handleCustomTrendSearch(text);
+    }
+    else {
       setIsLoading(true);
       setTimeout(() => {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: "assistant",
-          content: "I'm currently specialized in tracking trends across domains. Try asking me to 'Discover current trends'!",
+          content: "I can help you discover current trends or search for specific topics. Try 'Discover trends' or 'Find airport fit check trends'!",
         };
         setMessages((prev) => [...prev, assistantMessage]);
         setIsLoading(false);
@@ -125,26 +94,141 @@ export default function ChatAssistant() {
     }
   };
 
-  const handleKnowMore = async (trend: any) => {
+  const handleTrendDiscovery = async (isMoreRequest = false) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const payload: any = { forceRefresh: false };
+      if (isMoreRequest && currentSession) {
+        payload.sessionId = currentSession.sessionId;
+        payload.nextBatch = true;
+      }
+
+      const res = await fetch("/api/trends/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        if (!isMoreRequest) setCurrentSession(data);
+        
+        const sessionId = data.sessionId;
+        const assistantMessageId = Date.now().toString();
+        const assistantMessage: Message = {
+          id: assistantMessageId,
+          type: "assistant",
+          content: isMoreRequest 
+            ? "Finding the next set of trends from this week's batch..." 
+            : "I'm identifying current trends for you. Topics will appear below as they are verified with live references:",
+          data: data.topics,
+          dataType: "trends",
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        startPolling(sessionId, assistantMessageId);
+      } else {
+        throw new Error(data.error || "Failed to start discovery");
+      }
+    } catch (err: any) {
+      setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  const handleCustomTrendSearch = async (query: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      console.log(`[CustomSearch] Initiating: ${query}`);
+      const res = await fetch("/api/trends/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const sessionId = data.sessionId;
+        const assistantMessageId = Date.now().toString();
+        const assistantMessage: Message = {
+          id: assistantMessageId,
+          type: "assistant",
+          content: `Searching for trends related to "${query}" and validating evidence...`,
+          data: data.topics,
+          dataType: "trends",
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        startPolling(sessionId, assistantMessageId);
+      } else {
+        throw new Error(data.error || "Search failed");
+      }
+    } catch (err: any) {
+      console.error("[CustomSearch] Error:", err);
+      setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  const startPolling = (sessionId: string, assistantMessageId: string) => {
+    let isComplete = false;
+    let pollCount = 0;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        pollCount++;
+        const statusRes = await fetch("/api/trends/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId })
+        });
+        const statusData = await statusRes.json();
+
+        if (statusData.success && statusData.topics && statusData.topics.length > 0) {
+          setMessages(prev => prev.map(m => {
+            if (m.id === assistantMessageId) {
+              return { ...m, data: statusData.topics };
+            }
+            return m;
+          }));
+
+          const allDone = statusData.topics.every((t: any) => t.status === "ready" || t.status === "failed");
+          if (allDone) {
+            isComplete = true;
+            clearInterval(pollInterval);
+            setIsLoading(false);
+          }
+        } else if (pollCount > 20) { 
+          // Timeout after 1 minute (20 * 3s)
+          console.error("[Polling] Timeout reached for session:", sessionId);
+          clearInterval(pollInterval);
+          setIsLoading(false);
+        }
+      } catch (pollErr) {
+        console.error("Polling error:", pollErr);
+      }
+    }, 3000);
+  };
+
+  const handleKnowMore = async (topicId: string) => {
+    if (!topicId) {
+      console.error("Missing topicId for Know More request");
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await fetch("/api/chat/detail", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: currentSession?.sessionId,
-          trendId: trend.trendId,
-          trendTitle: trend.title,
-          hashtags: trend.hashtags,
-          classification: trend.classification,
-        }),
+        body: JSON.stringify({ topicId }),
       });
       const data = await res.json();
       if (data.success) {
         const detailMessage: Message = {
           id: Date.now().toString(),
           type: "assistant",
-          content: `Deep dive: ${trend.title}`,
+          content: `Deep dive analysis for this trend:`,
           data: data.detail,
           dataType: "detail",
         };
@@ -170,8 +254,8 @@ export default function ChatAssistant() {
     const assistantMessage: Message = {
       id: Date.now().toString(),
       type: "assistant",
-      content: "Back to all trends:",
-      data: currentSession.trendCards,
+      content: "Back to your last trend discovery:",
+      data: currentSession.topics,
       dataType: "trends",
     };
     setMessages((prev) => [...prev, assistantMessage]);
@@ -179,7 +263,6 @@ export default function ChatAssistant() {
 
   return (
     <div className="flex flex-col h-screen bg-[#0F111A]">
-      {/* Header */}
       <header className="h-16 border-b border-[#2A2D3E] flex items-center px-6 justify-between shrink-0 bg-[#0F111A]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-[#53A9EF] rounded-lg flex items-center justify-center">
@@ -188,13 +271,12 @@ export default function ChatAssistant() {
           <span className="font-bold text-white tracking-tight">YesCity AI Content Engine</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] uppercase font-bold text-[#555870] tracking-widest bg-[#1A1D27] px-2 py-1 rounded border border-[#2A2D3E]">
-            MVP v2.0 - Broad Search
+          <span className="text-[10px] uppercase font-bold text-[#53A9EF] tracking-widest bg-[#53A9EF]/10 px-2 py-1 rounded border border-[#53A9EF]/20">
+            Product v1.0 - Live Intelligence
           </span>
         </div>
       </header>
 
-      {/* Chat Area */}
       <main className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="max-w-4xl mx-auto py-10 px-6">
           {messages.map((m) => (
@@ -213,7 +295,7 @@ export default function ChatAssistant() {
                     </div>
                     <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">YesCity AI Content Engine</h1>
                     <p className="text-[#8B90A7] max-w-md mx-auto mb-8">
-                      Discover broad trends across news, memes, and culture, and adapt them into high-converting city-discovery content.
+                      Discover broad trends or search for specific niches to adapt into high-converting city content.
                     </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,45 +310,32 @@ export default function ChatAssistant() {
                         <p className="text-xs text-[#8B90A7]">Search across memes, news, and more</p>
                       </button>
                       <button
-                        onClick={() => handleSend("Tell me about recent viral memes")}
+                        onClick={() => handleSend("Find street food trends")}
                         className="p-4 rounded-xl bg-[#1A1D27] border border-[#2A2D3E] hover:border-[#53A9EF]/50 transition-all text-left group"
                       >
                         <div className="flex items-center gap-3 mb-1">
-                          <Zap size={18} className="text-purple-400" />
-                          <span className="text-sm font-semibold text-white group-hover:text-purple-400">Adapt viral memes</span>
+                          <Search size={18} className="text-purple-400" />
+                          <span className="text-sm font-semibold text-white group-hover:text-purple-400">Search specific niche</span>
                         </div>
-                        <p className="text-xs text-[#8B90A7]">Convert internet culture into brand content</p>
+                        <p className="text-xs text-[#8B90A7]">Target a specific category or topic</p>
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div className={`p-4 rounded-2xl ${
-                    m.type === "user" 
-                      ? "bg-[#53A9EF] text-white" 
-                      : "bg-[#1A1D27] border border-[#2A2D3E] text-[#F0F2F8]"
+                    m.type === "user" ? "bg-[#53A9EF] text-white" : "bg-[#1A1D27] border border-[#2A2D3E] text-[#F0F2F8]"
                   }`}>
                     <p className="text-sm leading-relaxed">{m.content}</p>
-                    
-                    {m.type === "assistant" && m.dataType === "trends" && lastSourceUsed && (
-                      <div className="mt-2 flex items-center gap-1.5 opacity-50">
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          lastSourceUsed === "live" ? "bg-green-400" : lastSourceUsed === "cache" ? "bg-blue-400" : "bg-amber-400"
-                        }`} />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">
-                          Source: {lastSourceUsed === "fallback" ? "Demo Data" : lastSourceUsed === "live" ? "Live Instagram" : "Cached"}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 )}
                 
                 {m.dataType === "trends" && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    {m.data.map((trend: any) => (
+                    {m.data?.map((trend: any, idx: number) => (
                       <TrendCard 
-                        key={trend.trendId} 
+                        key={trend.topicId || `loading-${idx}`} 
                         {...trend} 
-                        onKnowMore={() => handleKnowMore(trend)} 
+                        onKnowMore={() => handleKnowMore(trend.topicId)} 
                       />
                     ))}
                   </div>
@@ -278,7 +347,7 @@ export default function ChatAssistant() {
                       detail={m.data} 
                       onBack={handleBackToTrends}
                       onExploreAnother={() => setMessages(prev => prev.slice(0, prev.length - 1))}
-                      onGenerateMore={() => handleKnowMore(m.data)}
+                      onGenerateMore={() => handleKnowMore(m.data.topicId)}
                     />
                   </div>
                 )}
@@ -302,7 +371,6 @@ export default function ChatAssistant() {
         </div>
       </main>
 
-      {/* Input Area */}
       <footer className="p-6 shrink-0 bg-[#0F111A]">
         <div className="max-w-4xl mx-auto relative">
           <input
@@ -310,7 +378,7 @@ export default function ChatAssistant() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Ask about current trends or adaptation ideas..."
+            placeholder="Ask about current trends or search for topics..."
             className="w-full bg-[#1A1D27] border border-[#2A2D3E] text-white rounded-2xl px-6 py-4 focus:outline-none focus:border-[#53A9EF]/50 transition-all pr-16 shadow-2xl"
           />
           <button

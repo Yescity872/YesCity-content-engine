@@ -59,20 +59,18 @@ export function scoreTrends(trends: any[]): ScoredTrend[] {
     if (isSensitive) classification = "sensitive";
     else if (isDirectTravel) classification = "direct";
 
-    // Why it matters logic
-    let whyItMatters = "";
+    // Why it matters logic (Ensure non-empty)
+    let whyItMatters = "Broad viral interest. Significant attention across digital platforms.";
     if (isSensitive) {
       whyItMatters = "Critical global news/event. Impacting public safety and information flow.";
     } else if (isDirectTravel) {
       whyItMatters = "High travel intent. People are actively exploring destinations and experiences.";
     } else if (isAdaptable) {
       whyItMatters = "Viral cultural format. Relatable and easily adaptable for creative marketing.";
-    } else {
-      whyItMatters = "Broad viral interest. Significant attention across digital platforms.";
     }
 
-    // YesCity Angle (Strict Safety Override)
-    let yesCityAngle = "";
+    // YesCity Angle (Strict Safety Override & Non-empty)
+    let yesCityAngle = "Adapt this viral format to showcase a unique city experience or local culture in India.";
     if (isSensitive) {
       yesCityAngle = "Provide a travel advisory, safety awareness update, or responsible city update for Indian travelers.";
     } else if (isDirectTravel) {
@@ -85,8 +83,6 @@ export function scoreTrends(trends: any[]): ScoredTrend[] {
       yesCityAngle = "Airport fit check and travel essentials for your next Indian city hop.";
     } else if (conceptTitle.includes("Concert")) {
       yesCityAngle = "The ultimate guide to planning a city trip around major Indian concerts or festivals.";
-    } else {
-      yesCityAngle = "Adapt this viral format to showcase a unique city experience or local culture in India.";
     }
 
     return {

@@ -7,10 +7,8 @@
 
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI || "";
-
-if (!MONGODB_URI && process.env.NODE_ENV !== "development") {
-  throw new Error("Please define the MONGODB_URI environment variable in .env.local");
+function getMongoUri() {
+  return process.env.MONGODB_URI || "";
 }
 
 /** Cached connection state to prevent multiple connections in dev */
@@ -33,22 +31,30 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
     return cached.conn;
   }
 
-  if (!MONGODB_URI) {
+  const uri = getMongoUri();
+
+  if (!uri) {
     throw new Error(
       "MongoDB URI is not configured. Add MONGODB_URI to your .env.local file."
     );
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
+    cached.promise = mongoose.connect(uri, {
       bufferCommands: false,
     });
   }
 
-  cached.conn = await cached.promise;
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null; // Reset promise on failure so we can retry
+    throw e;
+  }
+  
   return cached.conn;
 }
 
 export function isMongoDBConfigured(): boolean {
-  return Boolean(MONGODB_URI);
+  return Boolean(getMongoUri());
 }
