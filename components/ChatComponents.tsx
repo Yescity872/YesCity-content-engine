@@ -1,4 +1,5 @@
-import { Zap, ArrowRight, Video, FileText, ChevronLeft, RefreshCcw, ExternalLink, Play } from "lucide-react";
+import React from 'react';
+import { Zap, ArrowRight, Video, FileText, ChevronLeft, RefreshCcw, ExternalLink, Play, Sparkles, Clock, Users } from "lucide-react";
 
 export interface IReferenceItem {
   url: string;
@@ -7,6 +8,7 @@ export interface IReferenceItem {
   sourceType: "live" | "curated" | "demo";
   thumbnailUrl?: string;
   aiCaption?: string;
+  aiMarketingNote?: string;
 }
 
 const ThumbnailCard: React.FC<{ item: IReferenceItem }> = ({ item }) => {
@@ -60,8 +62,137 @@ const ThumbnailCard: React.FC<{ item: IReferenceItem }> = ({ item }) => {
         <p className="text-[9px] text-[#8B90A7] line-clamp-2 leading-tight mb-1">
           {displayCaption}
         </p>
+        {item.aiMarketingNote && (
+          <div className="mt-1 border-t border-[#2A2D3E] pt-1.5">
+            <p className="text-[7px] uppercase font-bold text-[#53A9EF]/70 mb-0.5 tracking-tighter">Production Hint</p>
+            <p className="text-[9px] text-white/90 line-clamp-3 leading-snug font-medium italic">
+              "{item.aiMarketingNote}"
+            </p>
+          </div>
+        )}
       </div>
     </a>
+  );
+};
+
+const ExecutionPlanCard: React.FC<{ plan: any }> = ({ plan }) => {
+  return (
+    <div className="flex flex-col rounded-2xl bg-[#0F111A] border border-[#2A2D3E] p-4 hover:border-[#53A9EF]/30 transition-all group/plan h-fit">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex items-center gap-2">
+          {plan.type === "reel" ? <Video size={14} className="text-purple-400" /> : <FileText size={14} className="text-blue-400" />}
+          <span className="text-xs font-bold text-white uppercase tracking-tight">{plan.title}</span>
+        </div>
+        <span className={`text-[8px] font-black uppercase px-2 py-1 rounded ${
+          plan.difficulty === "Easy" ? "bg-green-500/10 text-green-400" : 
+          plan.difficulty === "Medium" ? "bg-yellow-500/10 text-yellow-400" : "bg-red-500/10 text-red-400"
+        }`}>
+          {plan.difficulty}
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <p className="text-[8px] font-black uppercase text-[#53A9EF] mb-1">Concept</p>
+          <p className="text-xs text-[#F0F2F8] leading-relaxed">{plan.concept}</p>
+        </div>
+
+        <div className="bg-[#53A9EF]/5 rounded-xl p-3 border border-[#53A9EF]/10">
+          <p className="text-[8px] font-black uppercase text-[#53A9EF] mb-1">Viral Hook</p>
+          <p className="text-xs text-white font-bold italic">"{plan.hook}"</p>
+        </div>
+
+        <div>
+          <p className="text-[8px] font-black uppercase text-[#555870] mb-1">Scene Breakdown & Shooting</p>
+          <div className="space-y-2">
+            {plan.sceneBreakdown?.map((s: string, i: number) => (
+              <p key={i} className="text-[11px] text-[#8B90A7] flex gap-2">
+                <span className="text-[#53A9EF] font-bold">{i+1}.</span> {s}
+              </p>
+            ))}
+            <p className="text-[11px] text-[#8B90A7] mt-2">
+              <span className="text-white/50 uppercase text-[8px] font-bold">What to shoot:</span> {plan.whatToShoot}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[#2A2D3E]">
+          <div>
+            <p className="text-[8px] font-black uppercase text-[#555870] mb-1">Editing Style</p>
+            <p className="text-[10px] text-[#8B90A7]">{plan.editingStyle}</p>
+          </div>
+          <div>
+            <p className="text-[8px] font-black uppercase text-[#555870] mb-1">Recommended Team</p>
+            <p className="text-[10px] text-[#8B90A7]">{plan.team}</p>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <p className="text-[8px] font-black uppercase text-[#555870] mb-1">Caption & CTA</p>
+          <p className="text-[11px] text-[#8B90A7] mb-1">{plan.caption}</p>
+          <p className="text-[11px] text-[#53A9EF] font-bold">{plan.cta}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-1 mt-2">
+          {plan.hashtags?.map((h: string) => (
+            <span key={h} className="text-[9px] text-[#555870]">#{h.replace("#", "")}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 mt-6 border-t border-[#2A2D3E] pt-3 text-[9px] text-[#555870] font-bold uppercase tracking-widest">
+        <div className="flex items-center gap-1.5"><Clock size={12} /> {plan.time}</div>
+      </div>
+    </div>
+  );
+};
+
+export const PaginatedTrendView = ({ topics, onKnowMore }: { topics: any[], onKnowMore: (id: string) => void }) => {
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const topic = topics[currentIndex];
+
+  if (!topic) return null;
+
+  return (
+    <div className="relative group max-w-2xl mx-auto">
+      <div className="bg-[#0F111A] border border-[#2A2D3E] rounded-[32px] overflow-hidden shadow-2xl transition-all duration-500">
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <p className="text-[10px] font-bold text-[#53A9EF] uppercase tracking-[0.2em] mb-1">Intelligence Package {currentIndex + 1} of {topics.length}</p>
+              <h3 className="text-2xl font-bold text-white tracking-tight leading-tight">{topic.title}</h3>
+            </div>
+          </div>
+
+          <TrendCard {...topic} onKnowMore={() => onKnowMore(topic.topicId)} />
+        </div>
+      </div>
+
+      {/* Navigation Controls */}
+      {topics.length > 1 && (
+        <div className="flex justify-center gap-4 mt-8">
+          <button 
+            disabled={currentIndex === 0}
+            onClick={() => setCurrentIndex(prev => prev - 1)}
+            className="w-12 h-12 rounded-full bg-[#1A1D27] border border-[#2A2D3E] flex items-center justify-center text-white hover:bg-[#53A9EF] hover:border-[#53A9EF] transition-all disabled:opacity-20 disabled:cursor-not-allowed group/btn shadow-lg"
+          >
+            <ChevronLeft size={20} className="transition-transform group-hover/btn:-translate-x-0.5" />
+          </button>
+          
+          <div className="flex items-center gap-2 px-8 rounded-full bg-[#1A1D27] border border-[#2A2D3E] text-[11px] font-black text-white uppercase tracking-widest shadow-lg">
+            {currentIndex + 1} / {topics.length}
+          </div>
+
+          <button 
+            disabled={currentIndex === topics.length - 1}
+            onClick={() => setCurrentIndex(prev => prev + 1)}
+            className="w-12 h-12 rounded-full bg-[#1A1D27] border border-[#2A2D3E] flex items-center justify-center text-white hover:bg-[#53A9EF] hover:border-[#53A9EF] transition-all disabled:opacity-20 disabled:cursor-not-allowed group/btn shadow-lg"
+          >
+            <ArrowRight size={20} className="transition-transform group-hover/btn:translate-x-0.5" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -74,6 +205,12 @@ export interface TrendCardProps {
   yesCityAngle: string;
   status: "pending" | "scraping" | "ready" | "failed";
   references: IReferenceItem[];
+  intelligenceReport?: {
+    trendPatterns: string;
+    reelSimulation: string;
+    executionPlans: any[];
+    suggestedHashtags: string[];
+  };
   onKnowMore: () => void;
 }
 
@@ -85,6 +222,7 @@ export const TrendCard: React.FC<TrendCardProps> = ({
   yesCityAngle,
   status,
   references = [],
+  intelligenceReport,
   onKnowMore,
 }) => {
   const getBadge = () => {
@@ -112,17 +250,16 @@ export const TrendCard: React.FC<TrendCardProps> = ({
           <p className="text-xs text-[#F0F2F8] font-medium leading-relaxed">{yesCityAngle}</p>
         </div>
 
-        <div>
-          <p className="text-[10px] uppercase text-[#555870] font-bold tracking-widest mb-3 flex items-center gap-2">
-            📍 Visual References
-            {isWorking && <RefreshCcw size={10} className="animate-spin text-[#53A9EF]" />}
+        <div className="flex-1">
+          <p className="text-[10px] uppercase text-[#53A9EF] font-bold tracking-widest mb-3 flex items-center gap-2">
+            {references.length > 0 ? "📍 Visual References" : "✨ Trend Intelligence & Execution Strategy"}
           </p>
           
-          <div className="grid grid-cols-3 gap-2 min-h-[100px]">
+          <div className={`grid ${references.length > 0 ? "grid-cols-3" : "grid-cols-1"} gap-4`}>
             {isWorking ? (
               // Skeleton loaders while scraping
               [1, 2, 3].map((i) => (
-                <div key={i} className="aspect-square rounded-xl bg-[#0F111A] border border-[#2A2D3E] animate-pulse flex items-center justify-center">
+                <div key={i} className="aspect-video rounded-xl bg-[#0F111A] border border-[#2A2D3E] animate-pulse flex items-center justify-center">
                   <Play size={12} className="text-[#2A2D3E]" />
                 </div>
               ))
@@ -130,11 +267,31 @@ export const TrendCard: React.FC<TrendCardProps> = ({
               references.map((ref) => (
                 <ThumbnailCard key={ref.url} item={ref} />
               ))
-            ) : (
-              <div className="col-span-3 py-4 text-center text-[10px] text-[#555870] bg-[#0F111A] rounded-xl border border-dashed border-[#2A2D3E]">
-                No live references found for this topic.
+            ) : (intelligenceReport && intelligenceReport.executionPlans?.length > 0) ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-[#0F111A] border border-[#2A2D3E] shadow-inner">
+                    <p className="text-[8px] font-black uppercase text-[#53A9EF] mb-2 tracking-widest">Trend Behavior</p>
+                    <p className="text-xs text-[#8B90A7] leading-relaxed italic">"{intelligenceReport.trendPatterns}"</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#0F111A] border border-[#2A2D3E] shadow-inner">
+                    <p className="text-[8px] font-black uppercase text-[#53A9EF] mb-2 tracking-widest">Social Format</p>
+                    <p className="text-xs text-[#8B90A7] leading-relaxed italic">"{intelligenceReport.reelSimulation}"</p>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <p className="text-[10px] font-bold text-white uppercase tracking-widest mb-4 border-b border-[#2A2D3E] pb-2">
+                    Actionable Campaign Strategies
+                  </p>
+                  <div className="grid grid-cols-1 gap-4">
+                    {intelligenceReport.executionPlans.map((plan: any, i: number) => (
+                      <ExecutionPlanCard key={i} plan={plan} />
+                    ))}
+                  </div>
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

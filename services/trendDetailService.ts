@@ -45,7 +45,7 @@ Return a JSON object:
     "brandSafetyNote": "Safety/suitability for brands",
     "yesCityAngle": "Specific strategy for YesCity"
   },
-  "postIdeas": [
+  "postIdeas": [ // MUST BE EXACTLY 5
     {
       "title": "Strategy name",
       "conceptSummary": "Why this works for a static post/carousel",
@@ -56,7 +56,7 @@ Return a JSON object:
       "aiVideoPrompt": "Descriptive prompt for a high-quality static image or carousel slide"
     }
   ],
-  "reelIdeas": [
+  "reelIdeas": [ // MUST BE EXACTLY 5
     {
       "title": "Strategy name",
       "conceptSummary": "Why this works for a reel",

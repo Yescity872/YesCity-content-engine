@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { 
   TrendingUp, 
   Search, 
@@ -12,9 +13,11 @@ import {
   RefreshCcw,
   Zap,
   FileText,
-  Video
+  Video,
+  Lightbulb
 } from "lucide-react";
-import { TrendCard, TrendDetailView } from "@/components/ChatComponents";
+import { TrendCard, TrendDetailView, PaginatedTrendView } from "@/components/ChatComponents";
+import { DailyTrendView } from "@/components/DailyTrendComponents";
 
 interface Message {
   id: string;
@@ -25,6 +28,7 @@ interface Message {
 }
 
 export default function ChatAssistant() {
+  const [activeTab, setActiveTab] = useState<"discover" | "daily">("discover");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -35,12 +39,25 @@ export default function ChatAssistant() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentSession, setCurrentSession] = useState<any>(null);
+  const [currentBatchNumber, setCurrentBatchNumber] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [lastSourceUsed, setLastSourceUsed] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    // If user is within 100px of bottom, enable auto-scroll
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setShouldAutoScroll(isAtBottom);
+  };
+
+  const scrollToBottom = (force = false) => {
+    if (force || shouldAutoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
@@ -66,31 +83,60 @@ export default function ChatAssistant() {
     const isMoreRequest = normalizedText.includes("more") || normalizedText.includes("other") || normalizedText.includes("next");
     const isDiscovery = normalizedText.includes("current trends") || normalizedText.includes("discover trends") || normalizedText.includes("know trends");
 
+    // 2. Intent Detection
+    // We only block/redirect if they explicitly ask for a LIVE search/scrape process.
+    const isSearchRequest = 
+      normalizedText.includes("scrape") || 
+      normalizedText.includes("live search") || 
+      normalizedText.includes("find live") || 
+      normalizedText.includes("generate topics for") || 
+      normalizedText.includes("run a search") ||
+      (normalizedText.includes("search") && normalizedText.includes("topics"));
+
     if (isDiscovery || (isMoreRequest && currentSession)) {
       await handleTrendDiscovery(isMoreRequest);
     } 
-    // 2. Custom Specific Trend Search Detection
-    else if (
-      normalizedText.includes("find") || 
-      normalizedText.includes("search") || 
-      normalizedText.includes("show") || 
-      normalizedText.includes("give me") || 
-      normalizedText.includes("about") ||
-      normalizedText.length > 3 // Assume short specific queries are topics
-    ) {
-      await handleCustomTrendSearch(text);
+    else if (isSearchRequest) {
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        type: "assistant",
+        content: "Custom live search and reference scraping is coming soon. For now, you can use 'Discover Trends' for this week's broad trends, or just ask me any question about trends for marketing advice!",
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
     }
     else {
-      setIsLoading(true);
-      setTimeout(() => {
+      await handleCustomQuery(text);
+    }
+  };
+
+  const handleCustomQuery = async (query: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/chat/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query })
+      });
+      const data = await res.json();
+      if (data.success) {
         const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
+          id: Date.now().toString(),
           type: "assistant",
-          content: "I can help you discover current trends or search for specific topics. Try 'Discover trends' or 'Find airport fit check trends'!",
+          content: data.content,
         };
         setMessages((prev) => [...prev, assistantMessage]);
-        setIsLoading(false);
-      }, 600);
+      } else {
+        throw new Error(data.error || "Failed to get response");
+      }
+    } catch (err: any) {
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: "assistant",
+        content: `I can help you discover current trends or provide marketing advice! I'm having a little trouble with that specific niche right now, but feel free to ask about broad trends.`,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,9 +146,12 @@ export default function ChatAssistant() {
     
     try {
       const payload: any = { forceRefresh: false };
+      let requestedBatchNumber = 1;
+
       if (isMoreRequest && currentSession) {
+        requestedBatchNumber = currentBatchNumber + 1;
         payload.sessionId = currentSession.sessionId;
-        payload.nextBatch = true;
+        payload.batchNumber = requestedBatchNumber;
       }
 
       const res = await fetch("/api/trends/discover", {
@@ -113,7 +162,19 @@ export default function ChatAssistant() {
       const data = await res.json();
 
       if (data.success) {
-        if (!isMoreRequest) setCurrentSession(data);
+        if (!data.topics || data.topics.length === 0) {
+          const assistantMessage: Message = {
+            id: Date.now().toString(),
+            type: "assistant",
+            content: "No more weekly topics available. Please refresh to generate a new set.",
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+          setIsLoading(false);
+          return;
+        }
+
+        setCurrentSession(data); // Will update sessionId
+        setCurrentBatchNumber(data.batchNumber || requestedBatchNumber);
         
         const sessionId = data.sessionId;
         const assistantMessageId = Date.now().toString();
@@ -121,7 +182,7 @@ export default function ChatAssistant() {
           id: assistantMessageId,
           type: "assistant",
           content: isMoreRequest 
-            ? "Finding the next set of trends from this week's batch..." 
+            ? `Finding batch ${data.batchNumber || requestedBatchNumber} of trends from this week...` 
             : "I'm identifying current trends for you. Topics will appear below as they are verified with live references:",
           data: data.topics,
           dataType: "trends",
@@ -134,42 +195,16 @@ export default function ChatAssistant() {
     } catch (err: any) {
       setError(err.message);
       setIsLoading(false);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: "assistant",
+        content: `Error: ${err.message}`,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     }
   };
 
-  const handleCustomTrendSearch = async (query: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log(`[CustomSearch] Initiating: ${query}`);
-      const res = await fetch("/api/trends/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query })
-      });
-      const data = await res.json();
 
-      if (data.success) {
-        const sessionId = data.sessionId;
-        const assistantMessageId = Date.now().toString();
-        const assistantMessage: Message = {
-          id: assistantMessageId,
-          type: "assistant",
-          content: `Searching for trends related to "${query}" and validating evidence...`,
-          data: data.topics,
-          dataType: "trends",
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        startPolling(sessionId, assistantMessageId);
-      } else {
-        throw new Error(data.error || "Search failed");
-      }
-    } catch (err: any) {
-      console.error("[CustomSearch] Error:", err);
-      setError(err.message);
-      setIsLoading(false);
-    }
-  };
 
   const startPolling = (sessionId: string, assistantMessageId: string) => {
     let isComplete = false;
@@ -186,22 +221,55 @@ export default function ChatAssistant() {
         const statusData = await statusRes.json();
 
         if (statusData.success && statusData.topics && statusData.topics.length > 0) {
+          const totalCount = statusData.topics.length;
+          const readyWithDataCount = statusData.topics.filter((t: any) => 
+            t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)
+          ).length;
+          
+          let dynamicContent = "Identifying trends...";
+          if (readyWithDataCount < totalCount) {
+            dynamicContent = `⚡ Processing Intelligence: ${readyWithDataCount}/${totalCount} topics ready. Strategizing remaining...`;
+          } else {
+            dynamicContent = "✨ Trends identified! All cards are now complete with live references or full AI execution strategies:";
+          }
+
           setMessages(prev => prev.map(m => {
             if (m.id === assistantMessageId) {
-              return { ...m, data: statusData.topics };
+              return { ...m, content: dynamicContent, data: statusData.topics };
             }
             return m;
           }));
 
-          const allDone = statusData.topics.every((t: any) => t.status === "ready" || t.status === "failed");
-          if (allDone) {
+          const allFullyReady = statusData.topics.every((t: any) => 
+            (t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)) || t.status === "failed"
+          );
+
+          if (allFullyReady) {
             isComplete = true;
             clearInterval(pollInterval);
             setIsLoading(false);
+          } else if (pollCount > 40) { 
+            // Strict stop after 120 seconds (40 * 3s)
+            console.log("[Polling] ⏱️ 120s limit reached. Stopping UI loader and showing ready topics.");
+            isComplete = true;
+            clearInterval(pollInterval);
+            setIsLoading(false);
+            
+            setMessages(prev => prev.map(m => {
+              if (m.id === assistantMessageId) {
+                const readyCount = statusData.topics.filter((t: any) => 
+                  t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)
+                ).length;
+                return { 
+                  ...m, 
+                  content: `Intelligence window complete. ${readyCount} strategies are ready for review. The engine is still building more in the background.`,
+                  data: statusData.topics 
+                };
+              }
+              return m;
+            }));
           }
-        } else if (pollCount > 20) { 
-          // Timeout after 1 minute (20 * 3s)
-          console.error("[Polling] Timeout reached for session:", sessionId);
+        } else if (pollCount > 40) { 
           clearInterval(pollInterval);
           setIsLoading(false);
         }
@@ -263,24 +331,71 @@ export default function ChatAssistant() {
 
   return (
     <div className="flex flex-col h-screen bg-[#0F111A]">
-      <header className="h-16 border-b border-[#2A2D3E] flex items-center px-6 justify-between shrink-0 bg-[#0F111A]/80 backdrop-blur-md z-10">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-[#53A9EF] rounded-lg flex items-center justify-center">
-            <Sparkles size={18} className="text-white" />
-          </div>
-          <span className="font-bold text-white tracking-tight">YesCity AI Content Engine</span>
+      {/* Unified Premium Header */}
+      <header className="sticky top-0 h-20 border-b border-[#2A2D3E] flex items-center px-10 justify-between shrink-0 bg-[#0F111A]/80 backdrop-blur-xl z-50">
+        <div className="flex items-center gap-12">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 bg-[#53A9EF] rounded-xl flex items-center justify-center shadow-lg shadow-[#53A9EF]/20 group-hover:scale-110 transition-transform">
+              <Sparkles size={20} className="text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-black text-white text-lg tracking-tight leading-none uppercase">YesCity AI</span>
+              <span className="text-[10px] text-[#53A9EF] font-black uppercase tracking-[0.3em] mt-1">Intelligence</span>
+            </div>
+          </Link>
+
+          {/* Unified Navigation Tabs */}
+          <nav className="flex bg-[#1A1D27] p-1.5 rounded-2xl border border-[#2A2D3E] shadow-inner">
+            <button 
+              onClick={() => setActiveTab("discover")}
+              className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                activeTab === "discover" ? "bg-[#53A9EF] text-white shadow-xl scale-105" : "text-[#555870] hover:text-[#8B90A7]"
+              }`}
+            >
+              <Lightbulb size={14} /> Discovery
+            </button>
+            <button 
+              onClick={() => setActiveTab("daily")}
+              className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                activeTab === "daily" ? "bg-[#53A9EF] text-white shadow-xl scale-105" : "text-[#555870] hover:text-[#8B90A7]"
+              }`}
+            >
+              <TrendingUp size={14} /> Daily Trends
+            </button>
+          </nav>
+
+          <Link 
+            href="/idea-generator"
+            className="text-[10px] font-black text-[#555870] uppercase tracking-[0.2em] hover:text-[#53A9EF] transition-colors flex items-center gap-2"
+          >
+            <Zap size={14} /> Idea Generator
+          </Link>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-[10px] uppercase font-bold text-[#53A9EF] tracking-widest bg-[#53A9EF]/10 px-2 py-1 rounded border border-[#53A9EF]/20">
-            Product v1.0 - Live Intelligence
-          </span>
+
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] uppercase font-black text-[#53A9EF] tracking-[0.3em]">Phase 1 Active</span>
+            <span className="text-[8px] text-[#555870] font-bold uppercase tracking-widest mt-0.5">Live Intelligence Engine</span>
+          </div>
+          <div className="w-10 h-10 rounded-full border border-[#2A2D3E] bg-[#1A1D27] flex items-center justify-center overflow-hidden">
+             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto scrollbar-thin">
+      <main 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto scrollbar-thin scroll-smooth"
+      >
         <div className="max-w-4xl mx-auto py-10 px-6">
-          {messages.map((m) => (
-            <div key={m.id} className={`flex gap-4 mb-8 ${m.type === "user" ? "justify-end" : ""}`}>
+          {activeTab === "daily" ? (
+            <DailyTrendView />
+          ) : (
+            <>
+              {messages.map((m) => (
+                <div key={m.id} className={`flex gap-4 mb-8 ${m.type === "user" ? "justify-end" : ""}`}>
               {m.type === "assistant" && (
                 <div className="w-8 h-8 rounded-lg bg-[#1A1D27] border border-[#2A2D3E] flex items-center justify-center shrink-0 mt-1">
                   <Sparkles size={14} className="text-[#53A9EF]" />
@@ -301,7 +416,7 @@ export default function ChatAssistant() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <button
                         onClick={() => handleSend("Discover current trends")}
-                        className="p-4 rounded-xl bg-[#1A1D27] border border-[#2A2D3E] hover:border-[#53A9EF]/50 transition-all text-left group"
+                        className="p-4 rounded-xl bg-[#1A1D27] border border-[#2A2D3E] hover:border-[#53A9EF]/50 transition-all text-left group md:col-span-2"
                       >
                         <div className="flex items-center gap-3 mb-1">
                           <Globe size={18} className="text-[#53A9EF]" />
@@ -309,35 +424,55 @@ export default function ChatAssistant() {
                         </div>
                         <p className="text-xs text-[#8B90A7]">Search across memes, news, and more</p>
                       </button>
-                      <button
-                        onClick={() => handleSend("Find street food trends")}
-                        className="p-4 rounded-xl bg-[#1A1D27] border border-[#2A2D3E] hover:border-[#53A9EF]/50 transition-all text-left group"
-                      >
-                        <div className="flex items-center gap-3 mb-1">
-                          <Search size={18} className="text-purple-400" />
-                          <span className="text-sm font-semibold text-white group-hover:text-purple-400">Search specific niche</span>
-                        </div>
-                        <p className="text-xs text-[#8B90A7]">Target a specific category or topic</p>
-                      </button>
                     </div>
                   </div>
                 ) : (
                   <div className={`p-4 rounded-2xl ${
                     m.type === "user" ? "bg-[#53A9EF] text-white" : "bg-[#1A1D27] border border-[#2A2D3E] text-[#F0F2F8]"
                   }`}>
-                    <p className="text-sm leading-relaxed">{m.content}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
                   </div>
                 )}
                 
                 {m.dataType === "trends" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    {m.data?.map((trend: any, idx: number) => (
-                      <TrendCard 
-                        key={trend.topicId || `loading-${idx}`} 
-                        {...trend} 
-                        onKnowMore={() => handleKnowMore(trend.topicId)} 
-                      />
-                    ))}
+                  <div className="mt-6">
+                    {(() => {
+                      const readyTopics = m.data?.filter((t: any) => 
+                        t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)
+                      ) || [];
+                      
+                      const isStillProcessing = m.data && m.data.some((t: any) => t.status !== "ready" && t.status !== "failed");
+
+                      if (readyTopics.length === 0 && isStillProcessing) {
+                        return (
+                          <div className="py-16 flex flex-col items-center justify-center bg-[#0F111A] rounded-[32px] border border-dashed border-[#2A2D3E]">
+                            <RefreshCcw size={40} className="text-[#53A9EF] animate-spin mb-6 opacity-40" />
+                            <p className="text-sm font-bold text-[#53A9EF] uppercase tracking-[0.3em] animate-pulse">
+                              Assembling Intelligence...
+                            </p>
+                            <p className="text-xs text-[#555870] mt-3">Synthesizing live references and execution strategies</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-4">
+                          <PaginatedTrendView 
+                            topics={readyTopics} 
+                            onKnowMore={handleKnowMore} 
+                          />
+                          
+                          {isStillProcessing && (
+                            <div className="flex items-center justify-center gap-2 py-4 px-6 rounded-full bg-[#53A9EF]/5 border border-[#53A9EF]/10 mx-auto w-fit">
+                              <RefreshCcw size={12} className="text-[#53A9EF] animate-spin" />
+                              <span className="text-[10px] font-bold text-[#53A9EF] uppercase tracking-widest">
+                                Processing More Strategy Packages ({readyTopics.length}/{m.data.length})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -368,10 +503,13 @@ export default function ChatAssistant() {
             </div>
           )}
           <div ref={messagesEndRef} />
+            </>
+          )}
         </div>
       </main>
 
-      <footer className="p-6 shrink-0 bg-[#0F111A]">
+      {activeTab === "discover" && (
+        <footer className="p-6 shrink-0 bg-[#0F111A]">
         <div className="max-w-4xl mx-auto relative">
           <input
             type="text"
@@ -393,6 +531,7 @@ export default function ChatAssistant() {
           Powered by Groq Llama-3.3 70B & YesCity Intel
         </p>
       </footer>
+      )}
     </div>
   );
 }

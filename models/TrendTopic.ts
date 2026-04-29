@@ -13,6 +13,26 @@ export interface ITrendTopic extends Document {
   sourceSignals: string[];
   classification: "direct" | "adaptable" | "sensitive";
   yesCityAngle: string;
+  intelligenceReport?: {
+    trendPatterns: string;
+    reelSimulation: string;
+    executionPlans: {
+      type: "post" | "reel";
+      title: string;
+      concept: string;
+      hook: string;
+      sceneBreakdown: string[];
+      whatToShoot: string;
+      editingStyle: string;
+      caption: string;
+      cta: string;
+      hashtags: string[];
+      difficulty: "Easy" | "Medium" | "Hard";
+      time: string;
+      team: string;
+    }[];
+    suggestedHashtags: string[];
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +59,26 @@ const trendTopicSchema = new Schema<ITrendTopic>(
       default: "adaptable" 
     },
     yesCityAngle: { type: String, required: true },
+    intelligenceReport: {
+      trendPatterns: { type: String },
+      reelSimulation: { type: String },
+      executionPlans: [{
+        type: { type: String, enum: ["post", "reel"] },
+        title: { type: String },
+        concept: { type: String },
+        hook: { type: String },
+        sceneBreakdown: { type: [String] },
+        whatToShoot: { type: String },
+        editingStyle: { type: String },
+        caption: { type: String },
+        cta: { type: String },
+        hashtags: { type: [String] },
+        difficulty: { type: String, enum: ["Easy", "Medium", "Hard"] },
+        time: { type: String },
+        team: { type: String },
+      }],
+      suggestedHashtags: { type: [String] },
+    },
   },
   {
     collection: "trend_topics",

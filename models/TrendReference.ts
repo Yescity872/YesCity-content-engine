@@ -7,7 +7,8 @@ export interface ITrendReference extends Document {
   mediaType: "reel" | "post";
   thumbnailUrl?: string;
   aiCaption: string;
-  sourceType: "live" | "curated" | "demo";
+  aiMarketingNote: string;
+  sourceType: "live" | "demo";
   scrapedAt: Date;
 }
 
@@ -15,13 +16,14 @@ const trendReferenceSchema = new Schema<ITrendReference>(
   {
     topicId: { type: String, required: true, index: true },
     platform: { type: String, default: "instagram" },
-    url: { type: String, required: true, unique: true },
+    url: { type: String, required: true },
     mediaType: { type: String, required: true, enum: ["reel", "post"] },
     thumbnailUrl: { type: String },
     aiCaption: { type: String, required: true },
+    aiMarketingNote: { type: String, default: "Adapt this viral format to showcase a unique city experience." },
     sourceType: { 
       type: String, 
-      enum: ["live", "curated", "demo"], 
+      enum: ["live", "demo"], 
       default: "live" 
     },
     scrapedAt: { type: Date, default: Date.now },

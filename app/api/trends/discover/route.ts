@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 export async function POST(request: Request) {
   const startTime = Date.now();
   try {
-    const { sessionId: existingSessionId, forceRefresh = false, query, nextBatch } = await request.json().catch(() => ({}));
+    const { sessionId: existingSessionId, forceRefresh = false, batchNumber: requestedBatchNumber } = await request.json().catch(() => ({}));
     await connectToDatabase();
 
     const weekId = getCurrentWeekId();
@@ -17,29 +17,34 @@ export async function POST(request: Request) {
     let batchTopics: any[] = [];
     let batchNumber = 1;
 
-    // A. Custom Query Mode
-    if (query) {
-      console.log(`[Discover] Custom query search: "${query}"`);
-      const customTopic = await getOrCreateWeeklyTopics(weekId, false, query);
-      batchTopics = [customTopic];
-    } 
-    // B. Batch Rotation Mode
-    else if (existingSessionId && nextBatch) {
-      const prevSession = await TrendSession.findOne({ sessionId: existingSessionId });
-      batchNumber = 2; // Explicitly request batch 2
-      console.log(`[Discover] Serving batch 2 for session: ${existingSessionId}`);
+    // A. Batch Rotation Mode
+    if (existingSessionId && requestedBatchNumber) {
+      batchNumber = requestedBatchNumber;
+      console.log(`[Discover] Serving batch ${batchNumber} for session: ${existingSessionId}`);
       const allTopics = await getOrCreateWeeklyTopics(weekId, forceRefresh);
-      batchTopics = allTopics.filter(t => t.batchNumber === 2);
+      batchTopics = allTopics.filter(t => t.batchNumber === batchNumber);
     } 
-    // C. Initial Discovery Mode
+    // B. Initial Discovery Mode
     else {
       const allTopics = await getOrCreateWeeklyTopics(weekId, forceRefresh);
       batchTopics = allTopics.filter(t => t.batchNumber === 1);
     }
 
-    const topicIds = batchTopics.map(t => t.topicId);
+    if (batchTopics.length === 0) {
+      return NextResponse.json({
+        success: true,
+        sessionId: existingSessionId || uuidv4(),
+        batchNumber,
+        topics: [],
+        responseTime: `${Date.now() - startTime}ms`
+      });
+    }
 
-    // 3. Create Session (Await explicitly to avoid race condition)
+    const topicIds = batchTopics.map(t => t.topicId);
+    const topicTitles = batchTopics.map(t => t.title).join(", ");
+    console.log(`[Discover] Batch ${batchNumber} topics: [${topicTitles}]`);
+
+    // 3. Create or Update Session
     const sessionId = uuidv4();
     await TrendSession.create({
       sessionId,
@@ -51,11 +56,14 @@ export async function POST(request: Request) {
     console.log(`[Discover] Session created: ${sessionId} with ${topicIds.length} topics`);
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    // Use a slightly more robust background trigger
-    const scrapePromise = fetch(`${baseUrl}/api/trends/scrape`, {
+    const allWeeklyTopics = await getOrCreateWeeklyTopics(weekId);
+    const allTopicIds = allWeeklyTopics.map(t => t.topicId);
+
+    // Trigger background scrape for ALL topics in the week to have them cached
+    fetch(`${baseUrl}/api/trends/scrape`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, topicIds }) // Pass topicIds directly as fallback
+      body: JSON.stringify({ sessionId, topicIds: allTopicIds })
     }).catch(err => console.error("[Discover] Background scrape trigger failed:", err));
 
     const response = NextResponse.json({
@@ -70,6 +78,7 @@ export async function POST(request: Request) {
         classification: t.classification,
         yesCityAngle: t.yesCityAngle,
         status: t.status,
+        aiSimulation: t.aiSimulation,
         references: []
       })),
       responseTime: `${Date.now() - startTime}ms`

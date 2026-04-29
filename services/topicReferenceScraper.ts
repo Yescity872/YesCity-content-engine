@@ -1,11 +1,37 @@
-import { scrapeHashtag } from "./instagramScraper";
 import TrendTopic, { ITrendTopic } from "@/models/TrendTopic";
 import TrendReference from "@/models/TrendReference";
 import { connectToDatabase } from "@/lib/mongodb";
-import { curatedReferences } from "@/data/curatedReferences";
+import { scrapeWithInstaTouch } from "./sourceAdapters/instagramInstaTouchAdapter";
+import { scrapeWithSnapscrape } from "./sourceAdapters/instagramSnapscrapeAdapter";
+import { scrapeWithPuppeteer } from "./sourceAdapters/instagramPuppeteerAdapter";
+import { generateFallbackIntelligence } from "./trendTopicService";
+import Groq from "groq-sdk";
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || "",
+});
+
+async function generateAiMarketingNote(topicTitle: string, caption: string): Promise<string> {
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a YesCity production strategist. Analyze the content of this reel (via its caption) and give a 1-sentence instruction on EXACTLY how to replicate its visual style or hook for an Indian city guide. Focus on creative shots and local vibes." 
+        },
+        { role: "user", content: `Trend Topic: ${topicTitle}\nReel Content/Caption: ${caption}` },
+      ],
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 100,
+    });
+    return completion.choices[0].message.content?.trim() || "Use this visual transition to reveal hidden city spots.";
+  } catch (err) {
+    return "Replicate this creative format to showcase local city culture.";
+  }
+}
 
 /**
- * Orchestrates scraping with strict relevance filtering.
+ * Orchestrates scraping with strict relevance filtering and fallback adapters.
  */
 export async function scrapeReferencesForTopic(topicId: string): Promise<void> {
   await connectToDatabase();
@@ -13,50 +39,67 @@ export async function scrapeReferencesForTopic(topicId: string): Promise<void> {
   const topic = await TrendTopic.findOne({ topicId });
   if (!topic) return;
 
-  try {
-    topic.status = "scraping";
-    await topic.save();
+  topic.status = "scraping";
+  await topic.save();
 
+  try {
     console.log(`[Scrape] Starting topic: "${topic.title}"`);
     await TrendReference.deleteMany({ topicId: topic.topicId });
 
     const usedUrls = new Set<string>();
-    const shortcodeRegex = /\/(p|reels|reel)\/([A-Za-z0-9_-]+)/;
     let relevantCount = 0;
 
-    // 1. Live Scraping Phase
-    for (const hashtag of topic.hashtags) {
+    // Prioritize Indian-specific hashtags if not provided
+    const tagsToTry = topic.hashtags?.length > 0 ? topic.hashtags : [`${topic.title.replace(/\s+/g, '')}india`, "indianfestivals", "creativereelsindia"];
+
+    for (let rawHashtag of tagsToTry) {
+      const hashtag = rawHashtag.replace(/^#/, ''); // Strip '#' to avoid double hashing
       console.log(`[Scrape] Trying hashtag: #${hashtag}`);
-      const results = await scrapeHashtag(hashtag, 6);
+      let results: any[] = [];
+      
+      // Fallback Architecture Chain
+      try {
+        results = await scrapeWithInstaTouch(hashtag, 6);
+        if (results.length === 0) {
+          console.log(`[Scrape Fallback] InstaTouch returned 0 results for #${hashtag}. Trying Snapscrape...`);
+          results = await scrapeWithSnapscrape(hashtag, 6);
+        }
+        if (results.length === 0) {
+          console.log(`[Scrape Fallback] Snapscrape returned 0 results for #${hashtag}. Trying Puppeteer Public...`);
+          results = await scrapeWithPuppeteer(hashtag, 6);
+        }
+      } catch (err: any) {
+        console.error(`[Scrape Fallback] Chain failed for #${hashtag}:`, err.message);
+      }
       
       for (const res of results) {
-        if (usedUrls.has(res.url) || !shortcodeRegex.test(res.url)) continue;
+        if (usedUrls.has(res.url)) continue;
 
         const caption = res.caption?.toLowerCase() || "";
         
-        // RELEVANCE VALIDATION: Reject "Poison" keywords and irrelevant context
+        // RELEVANCE VALIDATION: Reject foreign context and generic junk
         const poisonKeywords = [
           "hidden camera", "spy cam", "security camera", "mcdonalds", "burger king", "starbucks", 
-          "usa", "nyc", "london", "pakistan", "brand history", "founder story", "unrelated"
+          "usa", "nyc", "london", "pakistan", "uae", "dubai", "europe", "western", "brand history"
         ];
         
         const isPoison = poisonKeywords.some(word => caption.includes(word));
         
-        // Category-specific sanity check
-        let isRelevant = !isPoison;
-        if (topic.category === "food" && !caption.includes("food") && !caption.includes("street") && !caption.includes("eat")) {
-          isRelevant = false;
-        }
+        // Strict Category-specific sanity check for Indian/Local focus
+        const indianMarkers = ["india", "desi", "bharat", "indian", "festival", "bollywood", "city", "mumbai", "delhi", "bangalore", "pune", "lucknow"];
+        const hasIndianContext = indianMarkers.some(marker => caption.includes(marker)) || hashtag.toLowerCase().includes("india");
 
+        let isRelevant = !isPoison && hasIndianContext;
+        
         if (!isRelevant) {
-          console.log(`[Filter] Discarded irrelevant post for "${topic.title}": ${res.url}`);
-          usedUrls.add(res.url); // Mark as used so we don't try again
+          console.log(`[Filter] Discarded non-Indian/irrelevant post for "${topic.title}": ${res.url}`);
+          usedUrls.add(res.url); // Mark as used
           continue;
         }
 
         try {
-          const displayType = res.mediaType === "reel" ? "Reel" : "Post";
-          const improvedCaption = res.caption || `Verified reference for ${topic.title}.`;
+          const improvedCaption = res.caption || `Verified creative reference for ${topic.title}.`;
+          const aiMarketingNote = await generateAiMarketingNote(topic.title, improvedCaption);
 
           await TrendReference.create({
             topicId: topic.topicId,
@@ -64,6 +107,7 @@ export async function scrapeReferencesForTopic(topicId: string): Promise<void> {
             url: res.url,
             mediaType: res.mediaType,
             aiCaption: improvedCaption,
+            aiMarketingNote,
             sourceType: "live",
             scrapedAt: new Date()
           });
@@ -79,47 +123,25 @@ export async function scrapeReferencesForTopic(topicId: string): Promise<void> {
       }
       if (relevantCount >= 4) break;
     }
-
-    // 2. Aggressive Fallback Rule
-    // If we couldn't find at least 2 RELEVANT live refs, dump them and use curated
-    if (relevantCount < 2) {
-      console.log(`[Fallback] Topic "${topic.title}" only had ${relevantCount} relevant refs. Switching to curated bank.`);
-      
-      // Clear the weak live results to ensure quality
-      await TrendReference.deleteMany({ topicId: topic.topicId, sourceType: "live" });
-      
-      const fallbackBank = curatedReferences[topic.category.toLowerCase()] || curatedReferences["memes"];
-      let injected = 0;
-
-      for (const f of fallbackBank) {
-        try {
-          await TrendReference.create({
-            topicId: topic.topicId,
-            platform: "instagram",
-            url: f.url,
-            mediaType: f.mediaType,
-            aiCaption: f.aiCaption,
-            sourceType: "curated",
-            scrapedAt: new Date()
-          });
-          injected++;
-        } catch (dbErr: any) {
-          if (dbErr.code !== 11000) console.error("[Scrape] DB Error:", dbErr);
-        }
-        if (injected >= 3) break;
+    // NEW LOGIC: If no live references were found, generate the heavy Intelligence Fallback Report
+    if (relevantCount === 0) {
+      console.log(`[Scrape] No live references for "${topic.title}". Generating fallback intelligence...`);
+      await generateFallbackIntelligence(topic.topicId);
+      // Re-fetch topic to get the intelligenceReport from DB
+      const updatedTopic = await TrendTopic.findOne({ topicId });
+      if (updatedTopic) {
+        updatedTopic.status = "ready";
+        await updatedTopic.save();
       }
-      console.log(`[Fallback] Injected ${injected} curated Indian refs for "${topic.title}".`);
+    } else {
+      topic.status = "ready";
+      await topic.save();
     }
-
-    // 3. Final Status Update
-    const finalCount = await TrendReference.countDocuments({ topicId: topic.topicId });
-    topic.status = finalCount >= 2 ? "ready" : "failed";
-    await topic.save();
-    console.log(`[Scrape] Topic "${topic.title}" complete. Status: ${topic.status}`);
+    console.log(`[Scrape] Topic "${topic.title}" complete. references=${relevantCount}. Status: ready`);
 
   } catch (error) {
     console.error(`[Scrape] Critical failure for ${topicId}:`, error);
-    topic.status = "failed";
+    topic.status = "ready";
     await topic.save();
   }
 }

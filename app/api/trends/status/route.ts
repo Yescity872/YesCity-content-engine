@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       classification: t.classification,
       yesCityAngle: t.yesCityAngle === genericAngle ? "Create a tailored city discovery experience around this trend." : t.yesCityAngle,
       status: t.status,
+      intelligenceReport: t.intelligenceReport,
       references: (references.filter(r => r.topicId === t.topicId) || [])
         .filter(r => shortcodeRegex.test(r.url)) // Ensure valid shortcode
         .map(r => ({
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
           mediaType: r.mediaType,
           thumbnailUrl: r.thumbnailUrl,
           aiCaption: r.aiCaption,
+          aiMarketingNote: r.aiMarketingNote,
           sourceType: r.sourceType
         }))
         .slice(0, 3) // Return only top 3 for UI

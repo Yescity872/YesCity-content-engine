@@ -20,16 +20,26 @@ export async function POST(request: Request) {
 
     console.log(`[Scrape] Starting sequential batch scrape for session ${sessionId} (${topicIds.length} topics)...`);
 
-    // 2. Sequential Scrape
-    for (const topicId of topicIds) {
+    // 2. Sequential Scrape (Limited to 5 topics)
+    const batchStartTime = Date.now();
+    const TIMEOUT_MS = 150000; // 150 seconds
+
+    const topicsToScrape = topicIds.slice(0, 5); // ONLY scrape 5 topics maximum
+    console.log(`[Scrape] Processing top 5 topics for session ${sessionId}...`);
+
+    for (const topicId of topicsToScrape) {
+      // Check if we've exceeded our time limit
+      if (Date.now() - batchStartTime > TIMEOUT_MS) {
+        console.log(`[Scrape] ⏱️ Batch timeout reached. Stopping further processing.`);
+        break;
+      }
+
       try {
         await scrapeReferencesForTopic(topicId);
-        
-        // Small delay between topics to be gentle on Instagram/Network
-        await new Promise(r => setTimeout(r, 1000));
+        // Sequential delay to be safe (2 seconds between topics)
+        await new Promise(r => setTimeout(r, 2000));
       } catch (err) {
         console.error(`[Scrape] Failed for topic ${topicId}:`, err);
-        // Continue with next topic even if one fails
       }
     }
 

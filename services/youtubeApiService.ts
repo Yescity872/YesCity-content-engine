@@ -14,19 +14,41 @@ export interface YouTubeSignal {
  */
 export async function fetchYouTubeSignals(): Promise<YouTubeSignal[]> {
   const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    console.log("[YouTubeAPI] Skipped: YOUTUBE_API_KEY not found.");
-    return [];
-  }
 
   try {
-    // In a real implementation, we would call YouTube Data API v3 here
-    // const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=IN&key=${apiKey}`);
-    // const data = await res.json();
-    // return data.items.map(...)
+    if (apiKey) {
+      console.log("[YouTubeAPI] Fetching via API...");
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=IN&key=${apiKey}`);
+      const data = await res.json();
+      if (data.items) {
+        return data.items.map((item: any) => ({
+          title: item.snippet.title,
+          description: item.snippet.description,
+          channelTitle: item.snippet.channelTitle,
+          publishedAt: new Date(item.snippet.publishedAt),
+          thumbnailUrl: item.snippet.thumbnails.high.url,
+          videoUrl: `https://youtube.com/watch?v=${item.id}`,
+          platform: "youtube"
+        }));
+      }
+    }
+
+    // Fallback: Trending RSS
+    console.log("[YouTubeAPI] Falling back to Public Trending signals...");
+    const RSS_URL = "https://www.youtube.com/feeds/videos.xml?chart=mostPopular&region_code=IN";
+    const response = await fetch(RSS_URL);
+    const xmlData = await response.text();
+    const titles = [...xmlData.matchAll(/<title>(.*?)<\/title>/g)].map(m => m[1]);
     
-    console.log("[YouTubeAPI] Signal fetching placeholder called.");
-    return [];
+    return titles.slice(1, 10).map(title => ({
+      title,
+      description: "Trending video in India.",
+      channelTitle: "YouTube Trending",
+      publishedAt: new Date(),
+      thumbnailUrl: "",
+      videoUrl: "#",
+      platform: "youtube"
+    }));
   } catch (error) {
     console.error("[YouTubeAPI] Failed to fetch signals:", error);
     return [];
