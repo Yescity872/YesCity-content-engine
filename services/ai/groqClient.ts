@@ -22,7 +22,6 @@ export const generateWithGroq = async (systemPrompt: string, userPrompt: string)
         ],
         model: model,
         response_format: { type: "json_object" },
-        timeout: 15000, // 15s timeout
       });
 
       const content = completion.choices[0].message.content || "{}";

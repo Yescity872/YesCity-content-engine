@@ -1,16 +1,33 @@
 import { NextResponse } from "next/server";
 import { aiRouter } from "@/services/ai/aiRouter";
+import { connectToDatabase } from "@/lib/mongodb";
+import DailyTrend from "@/models/DailyTrend";
+import TrendTopic from "@/models/TrendTopic";
 
 export async function POST(request: Request) {
   try {
     const { query } = await request.json();
     if (!query) return NextResponse.json({ success: false, error: "Missing query" }, { status: 400 });
 
-    console.log(`[ChatQuery] Processing: "${query}"`);
+    await connectToDatabase();
+    
+    // Fetch latest context to make the AI smarter
+    const latestTrends = await DailyTrend.find().sort({ dateKey: -1 }).limit(1);
+    const recentTopics = await TrendTopic.find().sort({ createdAt: -1 }).limit(10);
+    
+    const contextStr = `
+      LATEST LIVE TRENDS (India): ${latestTrends[0]?.trends?.slice(0, 5).map((t: any) => t.title).join(", ") || "None found"}
+      RECENT DISCOVERED TOPICS: ${recentTopics.map((t: any) => t.title).join(", ") || "None found"}
+    `;
+
+    console.log(`[ChatQuery] Processing with context grounded in live data...`);
 
     const result = await aiRouter.generateStructured({
       purpose: "platformQueries",
       systemPrompt: `You are the YesCity AI Content Engine assistant. 
+          Ground your response in these LATEST LIVE TRENDS if relevant:
+          ${contextStr}
+          
           A user is asking about specific trends or marketing advice. 
           
           Guidelines:
