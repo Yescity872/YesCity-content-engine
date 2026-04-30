@@ -224,12 +224,12 @@ export default function ChatAssistant() {
         if (statusData.success && statusData.topics && statusData.topics.length > 0) {
           const totalCount = statusData.topics.length;
           const readyWithDataCount = statusData.topics.filter((t: any) => 
-            t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)
+            t.status === "ready" && t.references?.length >= 3
           ).length;
           
           let dynamicContent = "Identifying trends...";
           if (readyWithDataCount < totalCount) {
-            dynamicContent = `⚡ Processing Intelligence: ${readyWithDataCount}/${totalCount} topics ready. Strategizing remaining...`;
+            dynamicContent = `⚡ Getting trends ready...`;
           } else {
             dynamicContent = "✨ Trends identified! All cards are now complete with live references or full AI execution strategies:";
           }
@@ -242,35 +242,36 @@ export default function ChatAssistant() {
           }));
 
           const allFullyReady = statusData.topics.every((t: any) => 
-            (t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)) || t.status === "failed"
+            (t.status === "ready" && t.references?.length >= 3) || t.status === "failed"
           );
 
-          if (allFullyReady) {
-            isComplete = true;
-            clearInterval(pollInterval);
-            setIsLoading(false);
-          } else if (pollCount > 40) { 
-            // Strict stop after 120 seconds (40 * 3s)
-            console.log("[Polling] ⏱️ 120s limit reached. Stopping UI loader and showing ready topics.");
+          // Success condition: at least 3 topics ready AND we've polled for at least 15s
+          const enoughReady = readyWithDataCount >= 3 && pollCount > 5;
+
+          if (allFullyReady || enoughReady) {
             isComplete = true;
             clearInterval(pollInterval);
             setIsLoading(false);
             
             setMessages(prev => prev.map(m => {
               if (m.id === assistantMessageId) {
-                const readyCount = statusData.topics.filter((t: any) => 
-                  t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)
-                ).length;
                 return { 
                   ...m, 
-                  content: `Intelligence window complete. ${readyCount} strategies are ready for review. The engine is still building more in the background.`,
+                  content: allFullyReady 
+                    ? "✨ Trends identified! All cards are now complete with live references:" 
+                    : "⚡ Partial intelligence window ready! Explore these 3 verified strategies while I finish the rest in the background.",
                   data: statusData.topics 
                 };
               }
               return m;
             }));
+          } else if (pollCount > 25) { 
+            // Stop loader after ~75 seconds max
+            isComplete = true;
+            clearInterval(pollInterval);
+            setIsLoading(false);
           }
-        } else if (pollCount > 40) { 
+        } else if (pollCount > 25) { 
           clearInterval(pollInterval);
           setIsLoading(false);
         }
@@ -428,10 +429,12 @@ export default function ChatAssistant() {
                   <div className="mt-6">
                     {(() => {
                       const readyTopics = m.data?.filter((t: any) => 
-                        t.status === "ready" && (t.references?.length > 0 || t.intelligenceReport)
+                        t.status === "ready" && t.references?.length >= 3
                       ) || [];
                       
-                      const isStillProcessing = m.data && m.data.some((t: any) => t.status !== "ready" && t.status !== "failed");
+                      const isStillProcessing = m.data && 
+                                               m.data.some((t: any) => t.status !== "ready" && t.status !== "failed") &&
+                                               !m.content.includes("complete");
 
                       if (readyTopics.length === 0 && isStillProcessing) {
                         return (
@@ -456,7 +459,7 @@ export default function ChatAssistant() {
                             <div className="flex items-center justify-center gap-2 py-4 px-6 rounded-full bg-[#53A9EF]/5 border border-[#53A9EF]/10 mx-auto w-fit">
                               <RefreshCcw size={12} className="text-[#53A9EF] animate-spin" />
                               <span className="text-[10px] font-bold text-[#53A9EF] uppercase tracking-widest">
-                                Processing More Strategy Packages ({readyTopics.length}/{m.data.length})
+                                Building More Strategy Packages...
                               </span>
                             </div>
                           )}

@@ -34,20 +34,23 @@ export async function POST(request: Request) {
       category: t.category,
       contextSummary: t.contextSummary,
       classification: t.classification,
-      yesCityAngle: t.yesCityAngle === genericAngle ? "Create a tailored city discovery experience around this trend." : t.yesCityAngle,
+      yesCityAngle: t.yesCityAngle,
       status: t.status,
       intelligenceReport: t.intelligenceReport,
       references: (references.filter(r => r.topicId === t.topicId) || [])
-        .filter(r => shortcodeRegex.test(r.url)) // Ensure valid shortcode
         .map(r => ({
+          platform: r.platform,
+          sourceName: r.sourceName,
           url: r.url,
-          mediaType: r.mediaType,
+          title: r.title,
+          description: r.description,
           thumbnailUrl: r.thumbnailUrl,
-          aiCaption: r.aiCaption,
-          aiMarketingNote: r.aiMarketingNote,
-          sourceType: r.sourceType
+          channelTitle: r.channelTitle,
+          mediaType: r.mediaType,
+          sourceType: r.sourceType,
+          aiMarketingNote: r.aiMarketingNote
         }))
-        .slice(0, 3) // Return only top 3 for UI
+        .slice(0, 5) // Return top 5 for UI
     }));
 
     return NextResponse.json({

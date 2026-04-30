@@ -21,6 +21,7 @@ const FALLBACK_EXPANSION = {
 export async function expandTopicIntelligence(topic: string, category: string, region = "IN", forceRefresh = false) {
   try {
     await connectToDatabase();
+    const normalizedTopic = normalize(topic);
     
     const systemPrompt = `You are a localized Indian social media strategist and SEO expert.
 Your goal is to take a given topic, category, and region, and expand it into a comprehensive, highly localized set of search queries and content angles.

@@ -2,34 +2,63 @@ import mongoose, { Schema, Document, models, model } from "mongoose";
 
 export interface ITrendReference extends Document {
   topicId: string;
-  platform: string;
+  topic?: string;
+  platform: "youtube" | "instagram" | "web";
+  sourceName: string;
   url: string;
-  mediaType: "reel" | "post";
+  title?: string;
+  description?: string;
   thumbnailUrl?: string;
-  aiCaption: string;
-  aiMarketingNote: string;
+  channelTitle?: string;
+  mediaType: "video" | "short" | "reel" | "post" | "article";
+  engagement?: {
+    views?: number;
+    likes?: number;
+    comments?: number;
+  };
   sourceType: "live" | "demo";
-  scrapedAt: Date;
+  relevanceScore?: number;
+  aiMarketingNote: string;
+  publishedAt?: Date;
+  fetchedAt: Date;
+  expiresAt: Date;
 }
 
 const trendReferenceSchema = new Schema<ITrendReference>(
   {
     topicId: { type: String, required: true, index: true },
-    platform: { type: String, default: "instagram" },
-    url: { type: String, required: true },
-    mediaType: { type: String, required: true, enum: ["reel", "post"] },
+    topic: { type: String },
+    platform: { type: String, required: true, enum: ["youtube", "instagram", "web"] },
+    sourceName: { type: String, required: true },
+    url: { type: String, required: true, unique: true },
+    title: { type: String },
+    description: { type: String },
     thumbnailUrl: { type: String },
-    aiCaption: { type: String, required: true },
-    aiMarketingNote: { type: String, default: "Adapt this viral format to showcase a unique city experience." },
+    channelTitle: { type: String },
+    mediaType: { 
+      type: String, 
+      required: true, 
+      enum: ["video", "short", "reel", "post", "article"] 
+    },
+    engagement: {
+      views: { type: Number },
+      likes: { type: Number },
+      comments: { type: Number }
+    },
     sourceType: { 
       type: String, 
       enum: ["live", "demo"], 
       default: "live" 
     },
-    scrapedAt: { type: Date, default: Date.now },
+    relevanceScore: { type: Number, default: 0 },
+    aiMarketingNote: { type: String, required: true },
+    publishedAt: { type: Date },
+    fetchedAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, required: true, index: { expires: 0 } } // TTL Index
   },
   {
     collection: "trend_references",
+    timestamps: true
   }
 );
 

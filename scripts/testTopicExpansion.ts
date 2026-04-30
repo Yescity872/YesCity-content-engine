@@ -27,6 +27,10 @@ async function runTest() {
     const result = await expandTopicIntelligence(topic, category, "IN", true);
     const duration = Date.now() - startTime;
 
+    if (!result) {
+      console.error(`Expansion failed for ${topic}`);
+      continue;
+    }
     console.log(`Duration: ${duration}ms | Source: ${result.source}`);
     console.log(`Instagram Hashtags:`, result.instagramHashtags);
     console.log(`YouTube Queries:`, result.youtubeQueries);
@@ -46,7 +50,9 @@ async function runTest() {
   const cacheStartTime = Date.now();
   const cacheResult = await expandTopicIntelligence(testTopics[0].topic, testTopics[0].category, "IN", false);
   const cacheDuration = Date.now() - cacheStartTime;
-  console.log(`Cache Duration: ${cacheDuration}ms | Source: ${cacheResult.source}`);
+  if (cacheResult) {
+    console.log(`Cache Duration: ${cacheDuration}ms | Source: ${cacheResult.source}`);
+  }
 
   mongoose.connection.close();
   console.log("\nValidation Complete.");

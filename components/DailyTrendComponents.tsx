@@ -11,8 +11,10 @@ import {
   FileText,
   Video,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Globe
 } from "lucide-react";
+import { ThumbnailCard, IReferenceItem } from "./ChatComponents";
 
 /**
  * REFINED LIST CARD (Vertical Grid)
@@ -391,6 +393,31 @@ const DailyTrendDetail = ({ keyword, onClose, onDiveDeeper }: { keyword: string,
 
             {/* Signal Context */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 border-t border-[#2A2D3E]">
+              {/* Phase 3: Live References */}
+              <section className="md:col-span-3">
+                <div className="flex flex-col gap-1 mb-6">
+                  <h4 className="text-[10px] font-black text-white uppercase tracking-[0.4em] flex items-center gap-2">
+                    <Sparkles size={14} className="text-[#53A9EF]" /> Live Content References
+                  </h4>
+                  <p className="text-[10px] text-[#555870] font-medium leading-relaxed max-w-lg">
+                    Real-world examples analyzed by AI for production strategy.
+                  </p>
+                </div>
+                
+                {detail?.references && detail.references.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {detail.references.map((ref: any, i: number) => (
+                      <ThumbnailCard key={i} item={ref} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-[40px] bg-[#1A1D27]/50 border border-[#2A2D3E] border-dashed text-center">
+                    <p className="text-[10px] text-[#555870] uppercase font-black tracking-widest italic">Live references unavailable right now.</p>
+                  </div>
+                )}
+              </section>
+
+              {/* Regional Interest */}
               <section className="md:col-span-1">
                 <h4 className="text-[10px] font-black text-[#555870] uppercase tracking-[0.4em] mb-6">Regional Interest</h4>
                 <div className="space-y-3">

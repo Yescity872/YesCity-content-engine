@@ -27,7 +27,9 @@ export async function POST(request: Request) {
     // B. Initial Discovery Mode
     else {
       const allTopics = await getOrCreateWeeklyTopics(weekId, forceRefresh);
-      batchTopics = allTopics.filter(t => t.batchNumber === 1);
+      // Randomize the selection from the week's 10 topics
+      batchTopics = allTopics.sort(() => Math.random() - 0.5).slice(0, 5);
+      batchNumber = 1; // We'll call this batch 1 for simplicity
     }
 
     if (batchTopics.length === 0) {

@@ -2,18 +2,29 @@ import React from 'react';
 import { Zap, ArrowRight, Video, FileText, ChevronLeft, RefreshCcw, ExternalLink, Play, Sparkles, Clock, Users, Globe, ChevronRight } from "lucide-react";
 
 export interface IReferenceItem {
+  platform: "youtube" | "instagram" | "web";
+  sourceName: string;
   url: string;
-  caption: string;
-  mediaType: "post" | "reel";
-  sourceType: "live" | "curated" | "demo";
+  title?: string;
+  description?: string;
   thumbnailUrl?: string;
-  aiCaption?: string;
-  aiMarketingNote?: string;
+  channelTitle?: string;
+  mediaType: "video" | "short" | "reel" | "post" | "article";
+  engagement?: {
+    views?: number;
+    likes?: number;
+    comments?: number;
+  };
+  sourceType: "live" | "demo";
+  aiMarketingNote: string;
 }
 
-const ThumbnailCard: React.FC<{ item: IReferenceItem }> = ({ item }) => {
-  const isReel = item.mediaType === "reel";
-  const displayCaption = item.aiCaption || item.caption;
+export const ThumbnailCard: React.FC<{ item: IReferenceItem }> = ({ item }) => {
+  const displayTitle = item.title || item.description || "Reference Link";
+  const platformColor = 
+    item.platform === "youtube" ? "bg-red-600" : 
+    item.platform === "instagram" ? "bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]" : 
+    "bg-blue-600";
   
   return (
     <a 
@@ -22,54 +33,49 @@ const ThumbnailCard: React.FC<{ item: IReferenceItem }> = ({ item }) => {
       rel="noopener noreferrer"
       className="flex flex-col rounded-xl overflow-hidden bg-[#0F111A] border border-[#2A2D3E] hover:border-[#53A9EF]/40 transition-all group/card h-full"
     >
-      <div className={`relative w-full ${isReel ? 'aspect-[4/5]' : 'aspect-square'} overflow-hidden`}>
-        <div className="absolute top-1 right-1 z-10">
-          <span className={`text-[7px] font-black uppercase px-1 py-0.5 rounded shadow-lg border ${
-            item.sourceType === "curated" 
-              ? "bg-blue-500/80 text-white border-blue-400/50" 
-              : "bg-green-500/80 text-white border-green-400/50"
-          }`}>
-            {item.sourceType === "curated" ? "Curated" : "Live"}
+      <div className="relative w-full aspect-video overflow-hidden">
+        {/* Platform Badge */}
+        <div className="absolute top-2 left-2 z-10 flex gap-1">
+          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded shadow-lg text-white ${platformColor}`}>
+            {item.platform}
+          </span>
+          <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded shadow-lg bg-black/50 text-white/80 backdrop-blur-sm border border-white/10">
+            {item.sourceName}
           </span>
         </div>
+
         {item.thumbnailUrl ? (
           <img 
             src={item.thumbnailUrl} 
-            alt="Instagram reference" 
+            alt={displayTitle} 
             className="w-full h-full object-cover transition-transform group-hover/card:scale-105"
           />
         ) : (
-          <div className={`w-full h-full flex items-center justify-center p-4 text-center ${
-            isReel 
-              ? 'bg-gradient-to-b from-purple-600/20 to-blue-600/20' 
-              : 'bg-gradient-to-br from-blue-600/20 to-teal-600/20'
-          }`}>
-            <div className="flex flex-col items-center gap-2">
-              {isReel ? <Video size={20} className="text-purple-400" /> : <FileText size={20} className="text-blue-400" />}
-              <span className="text-[8px] font-bold text-[#555870] uppercase tracking-widest">
-                {isReel ? 'Reel' : 'Post'}
-              </span>
-            </div>
+          <div className="w-full h-full flex items-center justify-center bg-[#1A1D27]">
+             <Globe size={24} className="text-[#2A2D3E]" />
           </div>
         )}
         
-        <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md rounded-full p-1.5 border border-white/10 opacity-0 group-hover/card:opacity-100 transition-opacity">
-          <ExternalLink size={10} className="text-white" />
+        <div className="absolute inset-0 bg-black/20 group-hover/card:bg-transparent transition-all flex items-center justify-center">
+          <div className="bg-white/10 backdrop-blur-md rounded-full p-2 border border-white/10 opacity-0 group-hover/card:opacity-100 transition-opacity">
+            <ExternalLink size={12} className="text-white" />
+          </div>
         </div>
       </div>
       
-      <div className="p-2 flex-1 flex flex-col justify-between">
-        <p className="text-[9px] text-[#8B90A7] line-clamp-2 leading-tight mb-1">
-          {displayCaption}
-        </p>
-        {item.aiMarketingNote && (
-          <div className="mt-1 border-t border-[#2A2D3E] pt-1.5">
-            <p className="text-[7px] uppercase font-bold text-[#53A9EF]/70 mb-0.5 tracking-tighter">Production Hint</p>
-            <p className="text-[9px] text-white/90 line-clamp-3 leading-snug font-medium italic">
-              "{item.aiMarketingNote}"
-            </p>
-          </div>
+      <div className="p-3 flex-1 flex flex-col">
+        <h4 className="text-[10px] font-bold text-white line-clamp-1 mb-1">{displayTitle}</h4>
+        
+        {item.channelTitle && (
+          <p className="text-[8px] text-[#53A9EF] font-bold mb-2 uppercase tracking-tighter">@{item.channelTitle}</p>
         )}
+
+        <div className="mt-auto border-t border-[#2A2D3E] pt-2">
+          <p className="text-[7px] uppercase font-black text-[#53A9EF] mb-1 tracking-widest opacity-70">Production Hint</p>
+          <p className="text-[9px] text-[#8B90A7] leading-relaxed italic">
+            "{item.aiMarketingNote}"
+          </p>
+        </div>
       </div>
     </a>
   );
@@ -440,6 +446,30 @@ export const TrendDetailView: React.FC<{
           <Zap size={16} className="text-[#53A9EF]" /> YesCity Adaptation Angle
         </h3>
         <p className="text-xs text-[#8B90A7] leading-relaxed">{detail.aiAnalysis.yesCityAngle}</p>
+      </div>
+
+      {/* Phase 3: Live References */}
+      <div>
+        <div className="flex justify-between items-end mb-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-lg font-bold text-[#F0F2F8] flex items-center gap-2">
+              <Sparkles size={18} className="text-[#53A9EF]" /> Live Content References
+            </h3>
+            <p className="text-[10px] text-[#555870] font-medium uppercase tracking-widest ml-7">Real-world examples from YouTube, Instagram & News</p>
+          </div>
+        </div>
+        
+        {detail.references && detail.references.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {detail.references.map((ref: any, i: number) => (
+              <ThumbnailCard key={i} item={ref} />
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 rounded-3xl bg-[#1A1C2E] border border-[#2A2D3E] border-dashed text-center">
+            <p className="text-xs text-[#555870] italic">Live references unavailable right now. Use the content strategy and execution ideas below.</p>
+          </div>
+        )}
       </div>
 
       {/* Phase 2: Research Pathways */}

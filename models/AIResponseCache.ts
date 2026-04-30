@@ -6,7 +6,7 @@ export interface IAIResponseCache extends Document {
   inputHash: string;
   output: any;
   provider: "groq" | "sarvam" | "template";
-  model?: string;
+  aiModel?: string;
   createdAt: Date;
   expiresAt: Date;
 }
@@ -17,7 +17,7 @@ const AIResponseCacheSchema: Schema = new Schema({
   inputHash: { type: String, required: true },
   output: { type: Schema.Types.Mixed, required: true },
   provider: { type: String, enum: ["groq", "sarvam", "template"], required: true },
-  model: { type: String },
+  aiModel: { type: String },
   createdAt: { type: Date, default: Date.now },
   expiresAt: { type: Date, required: true, index: { expires: 0 } } // TTL Index
 });

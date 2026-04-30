@@ -82,7 +82,7 @@ export const aiRouter = {
         inputHash,
         output: result.output,
         provider: result.provider,
-        model: result.model,
+        aiModel: result.model,
         expiresAt
       });
       console.log(`[AI Router] Cached response saved: ${cacheKey}`);

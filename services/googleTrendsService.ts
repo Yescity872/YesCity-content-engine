@@ -5,6 +5,9 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { aiRouter } from "./ai/aiRouter";
 import { curatedTopicBank } from "@/data/curatedTopicBank";
 import { expandTopicIntelligence } from "./topicExpansionService";
+import TrendReference from "@/models/TrendReference";
+import { getLiveReferencesForTopic } from "./liveReferenceService";
+import TrendTopic from "@/models/TrendTopic";
 
 export interface TrendItem {
   title: string;
@@ -208,10 +211,26 @@ export async function getTrendDetails(keyword: string, country = "IN") {
   // 3. PHASE 2: Topic Expansion Engine
   const expansion = await expandTopicIntelligence(keyword, "Daily Trend", country);
   
+    // 4. PHASE 3: Live Reference Engine
+    const references = await TrendReference.find({ 
+      topic: keyword, 
+      expiresAt: { $gt: new Date() } 
+    }).limit(6);
+
+    // If no fresh references, trigger a background scrape (fire and forget for this request)
+    if (references.length === 0) {
+      console.log(`[GoogleTrends] No references for "${keyword}". Triggering background live search...`);
+      getLiveReferencesForTopic({
+        topicId: `daily_${keyword.replace(/\s+/g, '_')}_${new Date().getTime()}`,
+        topic: keyword,
+        category: "Daily Trend",
+        topicExpansion: expansion
+      }).catch(err => console.error("[GoogleTrends] Background ref search failed:", err));
+    }
+  
   return {
     ...detail,
     ...enrichment,
-    // Final check to ensure NO empty arrays
     relatedQueries: (detail.relatedQueries?.length > 0 ? detail.relatedQueries : enrichment.relatedQueries) || [],
     relatedTopics: (detail.relatedTopics?.length > 0 ? detail.relatedTopics : enrichment.relatedTopics) || [],
     platformQueries: { 
@@ -221,7 +240,8 @@ export async function getTrendDetails(keyword: string, country = "IN") {
       x: expansion?.xQueries || [],
       linkedin: expansion?.linkedinQueries || []
     },
-    topicExpansion: expansion
+    topicExpansion: expansion,
+    references: references // Pass existing references to UI
   };
 }
 

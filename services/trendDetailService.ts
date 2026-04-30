@@ -30,7 +30,7 @@ export async function getOrCreateTrendDetail(topicId: string): Promise<any> {
   if (!topic) throw new Error("Topic not found");
 
   const references = await TrendReference.find({ topicId });
-  const referenceCaptions = references.map(r => r.aiCaption).join(" | ");
+  const referenceCaptions = references.map(r => r.title || r.description).filter(Boolean).join(" | ");
 
   // 3. AI Generation
   console.log(`[TrendDetail] Generating AI analysis for "${topic.title}"...`);
