@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { refreshDailyTrends } from "@/services/googleTrendsService";
+import * as GoogleTrendsService from "@/services/googleTrendsService";
 
 export async function POST() {
   try {
-    const data = await refreshDailyTrends("IN");
-    return NextResponse.json({
-      success: true,
-      ...data
-    });
+    const data = await GoogleTrendsService.refreshDailyTrends("IN");
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error("[API RefreshTrends] Error:", error);
     return NextResponse.json({

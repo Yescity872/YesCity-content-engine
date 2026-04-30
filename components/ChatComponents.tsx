@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, ArrowRight, Video, FileText, ChevronLeft, RefreshCcw, ExternalLink, Play, Sparkles, Clock, Users } from "lucide-react";
+import { Zap, ArrowRight, Video, FileText, ChevronLeft, RefreshCcw, ExternalLink, Play, Sparkles, Clock, Users, Globe, ChevronRight } from "lucide-react";
 
 export interface IReferenceItem {
   url: string;
@@ -318,9 +318,11 @@ export interface ContentIdeaProps {
   title: string;
   conceptSummary: string;
   hook: string;
+  whyItWorks?: string;
+  format?: string;
   caption: string;
   cta: string;
-  sceneBreakdown: string[]; // Updated type
+  sceneBreakdown: string[]; 
   aiVideoPrompt: string;
   type: "post" | "reel";
 }
@@ -329,6 +331,8 @@ export const ContentIdea: React.FC<ContentIdeaProps> = ({
   title,
   conceptSummary,
   hook,
+  whyItWorks,
+  format,
   caption,
   cta,
   sceneBreakdown,
@@ -336,48 +340,62 @@ export const ContentIdea: React.FC<ContentIdeaProps> = ({
   type,
 }) => {
   return (
-    <div className="bg-[#161827] border border-[#2A2D3E] rounded-xl p-4 mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        {type === "reel" ? <Video size={16} className="text-purple-400" /> : <FileText size={16} className="text-blue-400" />}
-        <h4 className="text-sm font-bold text-[#F0F2F8]">{title}</h4>
+    <div className="bg-[#161827] border border-[#2A2D3E] rounded-3xl p-6 mb-6 hover:border-[#53A9EF]/30 transition-all">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${type === "reel" ? "bg-purple-500/10" : "bg-blue-500/10"}`}>
+            {type === "reel" ? <Video size={16} className="text-purple-400" /> : <FileText size={16} className="text-blue-400" />}
+          </div>
+          <h4 className="text-sm font-black text-[#F0F2F8] uppercase tracking-tight">{title}</h4>
+        </div>
+        {format && <span className="px-2 py-0.5 rounded-md bg-[#53A9EF]/10 text-[#53A9EF] text-[8px] font-bold uppercase">{format}</span>}
       </div>
-      <div className="space-y-3">
+
+      <div className="space-y-5">
         <div>
-          <p className="text-[10px] uppercase text-[#555870] font-bold">Concept</p>
-          <p className="text-xs text-[#8B90A7]">{conceptSummary}</p>
+          <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-1.5">Concept</p>
+          <p className="text-[13px] text-[#F0F2F8] leading-relaxed font-medium">{conceptSummary}</p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[10px] uppercase text-[#555870] font-bold">Hook</p>
-            <p className="text-xs text-[#F0F2F8]">"{hook}"</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-[#0F111A] p-3 rounded-xl border border-[#2A2D3E]">
+            <p className="text-[9px] uppercase text-[#555870] font-black tracking-widest mb-1">Hook</p>
+            <p className="text-[12px] text-[#53A9EF] font-bold italic">"{hook}"</p>
           </div>
-          <div>
-            <p className="text-[10px] uppercase text-[#555870] font-bold">CTA</p>
-            <p className="text-xs text-[#F0F2F8]">{cta}</p>
-          </div>
+          {whyItWorks && (
+            <div className="bg-[#0F111A] p-3 rounded-xl border border-[#2A2D3E]">
+              <p className="text-[9px] uppercase text-[#555870] font-black tracking-widest mb-1">Why it works</p>
+              <p className="text-[11px] text-[#8B90A7] font-medium leading-tight">{whyItWorks}</p>
+            </div>
+          )}
         </div>
-        <div>
-          <p className="text-[10px] uppercase text-[#555870] font-bold">Caption</p>
-          <p className="text-xs text-[#8B90A7] bg-[#0F111A] p-2 rounded border border-[#2A2D3E] mt-1 whitespace-pre-wrap">{caption}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase text-[#555870] font-bold mb-1">
-            {type === "reel" ? "Scene Breakdown" : "Image/Slide Breakdown"}
-          </p>
-          <ul className="space-y-1">
+
+        <div className="bg-[#0F111A] p-4 rounded-xl border border-[#2A2D3E]">
+          <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">Content Execution Breakdown</p>
+          <ul className="space-y-2">
             {sceneBreakdown.map((step, i) => (
-              <li key={i} className="text-xs text-[#8B90A7] flex gap-2">
-                <span className="text-[#53A9EF] font-bold">•</span>
+              <li key={i} className="text-[11px] text-[#8B90A7] flex gap-3 leading-relaxed">
+                <span className="text-[#53A9EF] font-black">{i + 1}.</span>
                 {step}
               </li>
             ))}
           </ul>
         </div>
-        <div className="bg-[#53A9EF]/5 border border-dashed border-[#53A9EF]/20 rounded p-2">
-          <p className="text-[10px] uppercase text-[#53A9EF] font-bold">
-            {type === "reel" ? "AI Video Prompt" : "AI Image Prompt"}
-          </p>
-          <p className="text-[11px] text-[#8B90A7] mt-1 italic">{aiVideoPrompt}</p>
+
+        <div className="flex flex-col gap-4 p-4 bg-[#53A9EF]/5 border border-[#53A9EF]/10 rounded-2xl">
+          <div>
+            <p className="text-[10px] uppercase text-[#53A9EF] font-black tracking-widest mb-1.5">Strategic Caption</p>
+            <p className="text-[11px] text-[#8B90A7] leading-relaxed whitespace-pre-wrap">{caption}</p>
+          </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-[#555870] font-bold uppercase tracking-widest">CTA:</span>
+            <span className="text-[#F0F2F8] font-black underline underline-offset-4 decoration-[#53A9EF]">{cta}</span>
+          </div>
+        </div>
+
+        <div className="bg-[#0F111A] p-4 rounded-xl border border-dashed border-[#2A2D3E]">
+          <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">AI Visual Prompt</p>
+          <p className="text-[11px] text-[#555870] italic leading-relaxed">"{aiVideoPrompt}"</p>
         </div>
       </div>
     </div>
@@ -424,19 +442,73 @@ export const TrendDetailView: React.FC<{
         <p className="text-xs text-[#8B90A7] leading-relaxed">{detail.aiAnalysis.yesCityAngle}</p>
       </div>
 
+      {/* Phase 2: Research Pathways */}
+      {detail.topicExpansion && (
+        <div className="bg-[#1A1C2E] border border-[#2A2D3E] p-6 rounded-[32px]">
+          <div className="flex flex-col gap-2 mb-6">
+            <h3 className="text-sm font-bold text-[#F0F2F8] flex items-center gap-2">
+              <Globe size={16} className="text-[#53A9EF]" /> Platform Research Pathways
+            </h3>
+            <p className="text-[10px] text-[#555870] font-medium leading-relaxed max-w-lg">
+              Use these suggested search pathways to research how this trend is appearing across platforms and to find inspiration for audience sentiment and competitor coverage.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">Instagram Hashtags</p>
+              <div className="flex flex-wrap gap-2">
+                {detail.topicExpansion.instagramHashtags?.slice(0, 5).map((q: string) => (
+                  <span key={q} className="text-[10px] text-[#53A9EF] font-bold bg-[#53A9EF]/10 px-2.5 py-1.5 rounded-lg border border-[#53A9EF]/10">{q}</span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">YouTube Search</p>
+              <div className="flex flex-col gap-2">
+                {detail.topicExpansion.youtubeQueries?.slice(0, 3).map((q: string) => (
+                  <span key={q} className="text-[10px] text-[#F0F2F8] bg-[#2A2D3E]/50 px-3 py-2 rounded-xl border border-[#2A2D3E] leading-relaxed">{q}</span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">Competitor Keywords</p>
+              <div className="flex flex-wrap gap-2">
+                {detail.topicExpansion.competitorKeywords?.slice(0, 3).map((q: string) => (
+                  <span key={q} className="text-[10px] text-amber-500 bg-amber-500/10 px-2.5 py-1.5 rounded-lg border border-amber-500/10 font-bold leading-relaxed">{q}</span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">LinkedIn / X Context</p>
+              <div className="flex flex-col gap-2">
+                {detail.topicExpansion.linkedinQueries?.slice(0, 2).map((q: string) => (
+                  <span key={q} className="text-[10px] text-[#8B90A7] bg-[#2A2D3E]/50 px-3 py-2 rounded-xl border border-[#2A2D3E] leading-relaxed">{q}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
-        <h3 className="text-lg font-bold text-[#F0F2F8] mb-4 flex items-center gap-2">
-          <FileText size={18} className="text-blue-400" /> 5 Strategic Post Ideas
-        </h3>
+        <div className="flex flex-col gap-1 mb-4">
+          <h3 className="text-lg font-bold text-[#F0F2F8] flex items-center gap-2">
+            <FileText size={18} className="text-blue-400" /> Suggested Post Concepts
+          </h3>
+          <p className="text-[10px] text-[#555870] font-medium uppercase tracking-widest ml-7">Strategic concepts designed for static or carousel formats</p>
+        </div>
         {detail.postIdeas.map((idea: any, i: number) => (
           <ContentIdea key={`${detail.topicId}-post-${i}`} {...idea} type="post" />
         ))}
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-[#F0F2F8] mb-4 flex items-center gap-2">
-          <Video size={18} className="text-purple-400" /> 5 Instagram Reel Ideas
-        </h3>
+        <div className="flex flex-col gap-1 mb-4">
+          <h3 className="text-lg font-bold text-[#F0F2F8] flex items-center gap-2">
+            <Video size={18} className="text-purple-400" /> Suggested Reel Concepts
+          </h3>
+          <p className="text-[10px] text-[#555870] font-medium uppercase tracking-widest ml-7">High-impact short-form video concepts tailored for this trend</p>
+        </div>
         {detail.reelIdeas.map((idea: any, i: number) => (
           <ContentIdea key={`${detail.topicId}-reel-${i}`} {...idea} type="reel" />
         ))}

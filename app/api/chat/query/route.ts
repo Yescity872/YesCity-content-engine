@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || "",
-});
+import { aiRouter } from "@/services/ai/aiRouter";
 
 export async function POST(request: Request) {
   try {
@@ -12,11 +8,9 @@ export async function POST(request: Request) {
 
     console.log(`[ChatQuery] Processing: "${query}"`);
 
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: `You are the YesCity AI Content Engine assistant. 
+    const result = await aiRouter.generateStructured({
+      purpose: "platformQueries",
+      systemPrompt: `You are the YesCity AI Content Engine assistant. 
           A user is asking about specific trends or marketing advice. 
           
           Guidelines:
@@ -26,16 +20,14 @@ export async function POST(request: Request) {
           4. Offer 1-2 actionable marketing strategies for YesCity (Indian city discovery).
           5. Include 3-5 suggested hashtags or search terms.
           6. Mention that live references and visual cards can be fetched using the "Discover Trends" feature.
-          7. Be encouraging and human-readable.` 
-        },
-        { role: "user", content: query },
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 500,
+          7. Be encouraging and human-readable.
+          
+          Return a JSON object with a single key "content" containing your full formatted response text.`,
+      userPrompt: query,
+      inputForCache: { query }
     });
 
-    const responseText = completion.choices[0].message.content || "I'm sorry, I couldn't process that request right now.";
+    const responseText = result.content || "I'm sorry, I couldn't process that request right now.";
 
     return NextResponse.json({ success: true, content: responseText });
 

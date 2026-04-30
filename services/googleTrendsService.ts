@@ -2,40 +2,9 @@
 import googleTrends from "google-trends-api";
 import DailyTrend from "@/models/DailyTrend";
 import { connectToDatabase } from "@/lib/mongodb";
-import Groq from "groq-sdk";
+import { aiRouter } from "./ai/aiRouter";
 import { curatedTopicBank } from "@/data/curatedTopicBank";
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || "",
-});
-
-/**
- * Translates regional language trend titles into English.
- */
-async function translateTrendTitles(trends: any[]) {
-  try {
-    const titles = trends.map(t => t.title);
-    const systemPrompt = `Translate these Indian trending topics into professional, natural English.
-Keep specific names of people or cities as they are.
-Return ONLY a JSON object with key "translated" as an array of strings in the same order.`;
-
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: JSON.stringify(titles) }],
-      model: "llama-3.3-70b-versatile",
-      response_format: { type: "json_object" },
-    });
-
-    const translated = JSON.parse(completion.choices[0].message.content || "{}").translated || [];
-    
-    return trends.map((t, i) => ({
-      ...t,
-      title: translated[i] || t.title
-    }));
-  } catch (error) {
-    console.warn("[GoogleTrends] Translation failed, using originals.");
-    return trends;
-  }
-}
+import { expandTopicIntelligence } from "./topicExpansionService";
 
 export interface TrendItem {
   title: string;
@@ -49,130 +18,304 @@ export interface TrendItem {
 }
 
 /**
- * 1. getDailyTopTrends(country = "IN")
+ * PHASE 1.5: getDailyTopTrends(country = "IN")
+ * 
+ * STRICT PRIORITY:
+ * 1. LIVE RSS (Primary)
+ * 2. LIVE API (Secondary)
+ * 3. CACHED REAL DATA (Tertiary - up to 48h old)
+ * 4. EMERGENCY AI SUGGESTIONS (Last Resort - separated in UI)
  */
 export async function getDailyTopTrends(country = "IN") {
   await connectToDatabase();
   const dateKey = new Date().toISOString().split("T")[0];
   
-  // A. Check for REAL cached data first
-  const cachedReal = await DailyTrend.findOne({ dateKey, country, isFallback: false });
+  // 1. Try LIVE RSS (Primary)
+  console.log(`[GoogleTrends] Attempting RSS fetch...`);
+  const rssTrends = await fetchDailyTrendsFromRSS(country);
+  if (rssTrends && rssTrends.length > 0) {
+    console.log(`[GoogleTrends] RSS success`);
+    console.log(`[GoogleTrends] Count: ${rssTrends.length}`);
+    console.log(`[GoogleTrends] First trend: ${rssTrends[0].title}`);
+    await saveTrendsToCache(dateKey, country, rssTrends, "rss", false);
+    console.log(`[GoogleTrends] Cache stored`);
+    return { trends: rssTrends, source: "Google Trends RSS", isFallback: false, success: true, dateKey };
+  }
+
+  // 2. Try LIVE API (Secondary)
+  console.log(`[GoogleTrends] RSS failed. Attempting API fallback...`);
+  const apiTrends = await fetchDailyTrendsFromLibrary(country);
+  if (apiTrends && apiTrends.length > 0) {
+    console.log(`[GoogleTrends] API success`);
+    console.log(`[GoogleTrends] Count: ${apiTrends.length}`);
+    console.log(`[GoogleTrends] First trend: ${apiTrends[0].title}`);
+    await saveTrendsToCache(dateKey, country, apiTrends, "google-trends-api", false);
+    console.log(`[GoogleTrends] Cache stored`);
+    return { trends: apiTrends, source: "Google Trends API", isFallback: false, success: true, dateKey };
+  }
+
+  // 3. Try CACHED REAL DATA (Tertiary)
+  console.log(`[GoogleTrends] All live sources failed. Checking cache...`);
+  const cachedReal = await DailyTrend.findOne({ country, isFallback: false }).sort({ dateKey: -1 });
   if (cachedReal && cachedReal.trends?.length > 0) {
-    console.log(`[GoogleTrends][Final] Serving real cached trends (${cachedReal.source})`);
+    console.log(`[GoogleTrends] Cache success`);
+    console.log(`[GoogleTrends] Count: ${cachedReal.trends.length}`);
+    console.log(`[GoogleTrends] First trend: ${cachedReal.trends[0].title}`);
+    console.log(`[GoogleTrends] Source: Cached (${cachedReal.dateKey})`);
     return { 
       trends: cachedReal.trends, 
-      source: `Cached ${cachedReal.source.toUpperCase()}`, 
-      count: cachedReal.trends.length,
-      isFallback: false,
-      success: true 
+      source: `Cached Google Trends (${cachedReal.dateKey})`, 
+      isFallback: false, 
+      success: true, 
+      dateKey: cachedReal.dateKey 
     };
   }
 
-  // B. Try RSS (Primary)
-  console.log(`[GoogleTrends][RSS] URL: https://trends.google.com/trending/rss?geo=${country}`);
-  let rssTrends = await fetchDailyTrendsFromRSS(country);
-  if (rssTrends && rssTrends.length > 0) {
-    console.log(`[GoogleTrends][RSS] Translating ${rssTrends.length} titles...`);
-    rssTrends = await translateTrendTitles(rssTrends);
-    
-    console.log(`[GoogleTrends][Final] Source: RSS | Count: ${rssTrends.length}`);
-    await saveTrendsToCache(dateKey, country, rssTrends, "rss", false);
-    return { 
-      trends: rssTrends, 
-      source: "Google Trends RSS", 
-      count: rssTrends.length, 
-      firstTrendTitle: rssTrends[0].title,
-      isFallback: false,
-      success: true 
-    };
-  }
-
-  // C. Try Library (Secondary)
-  console.log(`[GoogleTrends][Library] Attempting fallback to API library...`);
-  let apiTrends = await fetchDailyTrendsFromLibrary(country);
-  if (apiTrends && apiTrends.length > 0) {
-    console.log(`[GoogleTrends][Library] Translating ${apiTrends.length} titles...`);
-    apiTrends = await translateTrendTitles(apiTrends);
-
-    console.log(`[GoogleTrends][Final] Source: API | Count: ${apiTrends.length}`);
-    await saveTrendsToCache(dateKey, country, apiTrends, "google-trends-api", false);
-    return { 
-      trends: apiTrends, 
-      source: "Google Trends API", 
-      count: apiTrends.length, 
-      isFallback: false,
-      success: true 
-    };
-  }
-
-  // D. Emergency AI Fallback (Tertiary) - NEVER CACHE AS PRIMARY
-  console.log(`[GoogleTrends][Final] All real sources failed. Using Emergency AI Fallback.`);
+  // 4. EMERGENCY AI SUGGESTIONS (Last Resort)
+  console.log(`[GoogleTrends] Fallback triggered: Activating AI Synthesis`);
   const aiTrends = await generateAIFallbackTrends();
+  console.log(`[GoogleTrends] AI success`);
+  console.log(`[GoogleTrends] Count: ${aiTrends.length}`);
   return { 
     trends: aiTrends, 
-    source: "ai-fallback", 
-    count: aiTrends.length, 
-    isFallback: true,
-    success: true 
+    source: "AI Suggested Ideas", 
+    isFallback: true, 
+    success: true, 
+    dateKey 
   };
 }
 
 /**
- * Robust RSS Parser
+ * Compatibility wrapper for Discovery Engine
+ */
+export async function fetchGoogleTrendSignals(country = "IN"): Promise<TrendItem[]> {
+  const result = await getDailyTopTrends(country);
+  return result.trends || [];
+}
+
+
+/**
+ * RSS Parser with Strict Validation
  */
 async function fetchDailyTrendsFromRSS(country: string): Promise<TrendItem[] | null> {
   try {
     const RSS_URL = `https://trends.google.com/trending/rss?geo=${country}`;
     const response = await fetch(RSS_URL);
-    console.log(`[GoogleTrends][RSS] HTTP status: ${response.status}`);
-    
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.log(`[GoogleTrends][RSS] HTTP Error: ${response.status}`);
+      return null;
+    }
 
     const xmlData = await response.text();
-    console.log(`[GoogleTrends][RSS] Raw XML length: ${xmlData.length}`);
-
-    // Split by <item>
     const items = xmlData.split("<item>").slice(1);
-    console.log(`[GoogleTrends][RSS] Parsed item count: ${items.length}`);
+    
+    if (items.length === 0) {
+      console.log(`[GoogleTrends][RSS] Validation Failed: Zero items in feed.`);
+      return null;
+    }
 
     const trends: TrendItem[] = [];
     for (const item of items) {
-      const title = item.match(/<title>(.*?)<\/title>/)?.[1] || "";
-      const traffic = item.match(/<ht:approx_traffic>(.*?)<\/ht:approx_traffic>/)?.[1] || "Trending";
+      const titleMatch = item.match(/<title>(.*?)<\/title>/);
+      const trafficMatch = item.match(/<ht:approx_traffic>(.*?)<\/ht:approx_traffic>/);
       
-      // Extract news items
+      const title = titleMatch ? decodeHtmlEntities(titleMatch[1]) : "";
+      const traffic = trafficMatch ? trafficMatch[1] : "Trending";
+      
+      // Strict: A trend without a title is invalid
+      if (!title || title.length < 2) continue;
+
       const articles: any[] = [];
       const newsMatches = [...item.matchAll(/<ht:news_item>([\s\S]*?)<\/ht:news_item>/g)];
       for (const news of newsMatches) {
         articles.push({
-          title: news[1].match(/<ht:news_item_title>(.*?)<\/ht:news_item_title>/)?.[1] || "Related Article",
-          source: news[1].match(/<ht:news_item_source>(.*?)<\/ht:news_item_source>/)?.[1] || "Source",
+          title: decodeHtmlEntities(news[1].match(/<ht:news_item_title>(.*?)<\/ht:news_item_title>/)?.[1] || "Related Story"),
+          source: decodeHtmlEntities(news[1].match(/<ht:news_item_source>(.*?)<\/ht:news_item_source>/)?.[1] || "News"),
           url: news[1].match(/<ht:news_item_url>(.*?)<\/ht:news_item_url>/)?.[1] || "#"
         });
       }
 
-      if (title) {
-        trends.push({
-          title: decodeHtmlEntities(title),
-          traffic,
-          relatedQueries: [],
-          relatedTopics: [],
-          articles: articles.slice(0, 3),
-          fetchedAt: new Date(),
-          isFallback: false,
-          sourceType: "rss"
-        });
-      }
+      trends.push({
+        title,
+        traffic,
+        relatedQueries: [],
+        relatedTopics: [],
+        articles: articles.slice(0, 3),
+        fetchedAt: new Date(),
+        isFallback: false
+      });
     }
 
-    console.log(`[GoogleTrends][RSS] Normalized trend count: ${trends.length}`);
-    if (trends.length > 0) console.log(`[GoogleTrends][RSS] First trend: ${trends[0].title}`);
-    
     return trends.length > 0 ? trends : null;
   } catch (e) {
     console.error("[GoogleTrends][RSS] Error:", e);
     return null;
   }
+}
+
+/**
+ * Hardened Trend Detail (Intelligence Modal)
+ */
+export async function getTrendDetails(keyword: string, country = "IN") {
+  const detail: any = { 
+    keyword, 
+    interestOverTime: [], 
+    interestByRegion: [], 
+    relatedQueries: [], 
+    relatedTopics: [],
+    source: "Live Intelligence"
+  };
+  
+  const safeParse = (str: string) => {
+    try {
+      if (str.trim().startsWith("<")) return null;
+      return JSON.parse(str);
+    } catch (e) { return null; }
+  };
+
+  // 1. Fetch Real Signal Charts
+  try {
+    const [iot, ibr, rq, rt] = await Promise.all([
+      googleTrends.interestOverTime({ keyword, geo: country }).catch(() => null),
+      googleTrends.interestByRegion({ keyword, geo: country }).catch(() => null),
+      googleTrends.relatedQueries({ keyword, geo: country }).catch(() => null),
+      googleTrends.relatedTopics({ keyword, geo: country }).catch(() => null)
+    ]);
+
+    if (iot) {
+      const p = safeParse(iot);
+      if (p) detail.interestOverTime = p.default?.timelineData || [];
+    }
+    if (ibr) {
+      const p = safeParse(ibr);
+      if (p) detail.interestByRegion = p.default?.geoMapData || [];
+    }
+    if (rq) {
+      const p = safeParse(rq);
+      if (p) detail.relatedQueries = p.default?.rankedList?.[0]?.rankedKeyword?.map((k: any) => k.query) || [];
+    }
+    if (rt) {
+      const p = safeParse(rt);
+      if (p) detail.relatedTopics = p.default?.rankedList?.[0]?.rankedKeyword?.map((k: any) => k.topic.title) || [];
+    }
+  } catch (e) {
+    console.warn("[GoogleTrends] Signal extraction partial fail.");
+  }
+
+  // 2. AI Enrichment (MANDATORY High-Fidelity)
+  const enrichment = await enrichTrendWithAI(keyword, detail);
+  
+  // 3. PHASE 2: Topic Expansion Engine
+  const expansion = await expandTopicIntelligence(keyword, "Daily Trend", country);
+  
+  return {
+    ...detail,
+    ...enrichment,
+    // Final check to ensure NO empty arrays
+    relatedQueries: (detail.relatedQueries?.length > 0 ? detail.relatedQueries : enrichment.relatedQueries) || [],
+    relatedTopics: (detail.relatedTopics?.length > 0 ? detail.relatedTopics : enrichment.relatedTopics) || [],
+    platformQueries: { 
+      instagram: expansion?.instagramHashtags || enrichment.platformQueries?.instagram || [],
+      youtube: expansion?.youtubeQueries || enrichment.platformQueries?.youtube || [],
+      news: expansion?.newsQueries || enrichment.platformQueries?.news || [],
+      x: expansion?.xQueries || [],
+      linkedin: expansion?.linkedinQueries || []
+    },
+    topicExpansion: expansion
+  };
+}
+
+/**
+ * Force refresh the trends (used by the Sync button)
+ */
+export async function refreshDailyTrends(country = "IN") {
+  // getDailyTopTrends already prioritizes live data, so we can just call it
+  return await getDailyTopTrends(country);
+}
+
+export async function enrichTrendWithAI(keyword: string, trendData: any) {
+  const systemPrompt = `You are the Lead Strategist for YesCity AI, a high-end local discovery and brand storytelling agency. 
+Analyze the trend: "${keyword}".
+
+MISSION: 
+Convert this trend into high-velocity content ideas for YesCity. 
+YesCity's voice is premium, insider-focused, and deeply local. 
+
+NEVER provide generic life advice or broad facts. 
+ALWAYS anchor ideas to the YesCity mission: Discovering the best of Indian cities (food, travel, culture, events, and brand gems).
+
+Return exactly this JSON:
+{
+  "explanation": "2-3 sentences explaining exactly what this is and why it's happening in India.",
+  "whyTrending": "Identify the cultural, news, or social trigger behind this surge.",
+  "yesCityAngle": "A specific content strategy that connects this trend to local discovery or a brand story (e.g., 'Mapping this trend to the best cafes in Bandra').",
+  "relatedQueries": ["Specific search term 1", "Search term 2", "Search term 3"],
+  "relatedTopics": ["Topic cluster 1", "Topic 2", "Topic 3"],
+  "platformQueries": {
+    "instagram": ["hashtag 1", "hashtag 2"],
+    "youtube": ["search phrase 1", "search phrase 2"],
+    "news": ["headline search 1"]
+  },
+  "postIdeas": [
+    {
+      "title": "Strategy-driven title",
+      "concept": "Explanation of the post concept",
+      "hook": "Specific text hook",
+      "whyItWorks": "Marketing rationale",
+      "caption": "Full Instagram/Social caption",
+      "cta": "Strong Call to Action",
+      "sceneBreakdown": ["Slide 1 content", "Slide 2 content", "..."],
+      "aiPrompt": "Specific prompt for AI image generation"
+    }
+  ],
+  "reelIdeas": [
+    {
+      "title": "Viral title",
+      "concept": "Explanation of the reel concept",
+      "hook": "Strong verbal or visual hook",
+      "format": "POV / Mini-Doc / etc",
+      "whyItWorks": "Psychological trigger",
+      "caption": "Full Reel caption",
+      "cta": "Strong Call to Action",
+      "sceneBreakdown": ["0-3s: Action", "3-7s: Transition", "..."],
+      "aiPrompt": "Specific prompt for AI video generation"
+    }
+  ],
+  "strategicRec": "One expert tip on how to dominate this trend locally."
+}`;
+
+  console.log(`[GoogleTrends] Requesting enrichment for: ${keyword}...`);
+
+  const response = await aiRouter.generateStructured({
+    purpose: "dailyTrendAnalysis",
+    systemPrompt: systemPrompt,
+    userPrompt: `Trend Data Context: ${JSON.stringify(trendData)}`,
+    inputForCache: { keyword, trendData: JSON.stringify(trendData).slice(0, 500) }
+  });
+
+  return response;
+}
+
+/**
+ * Cache Rules: Preserve Real Data
+ */
+async function saveTrendsToCache(dateKey: string, country: string, trends: any[], source: string, isFallback: boolean) {
+  if (!trends || trends.length === 0) return;
+  
+  // NEVER overwrite a Real Cache with a Fallback Cache for the same day
+  if (isFallback) {
+    const existing = await DailyTrend.findOne({ dateKey, country });
+    if (existing && !existing.isFallback) {
+      console.log(`[Cache] Protecting Real data. Skipping fallback cache write.`);
+      return;
+    }
+  }
+
+  await DailyTrend.findOneAndUpdate(
+    { dateKey, country },
+    { dateKey, country, source, isFallback, trends, updatedAt: new Date() },
+    { upsert: true }
+  );
 }
 
 function decodeHtmlEntities(text: string) {
@@ -183,11 +326,9 @@ async function fetchDailyTrendsFromLibrary(country: string): Promise<TrendItem[]
   try {
     const results = await googleTrends.dailyTrends({ trendDate: new Date(), geo: country });
     if (results.trim().startsWith("<")) return null;
-
     const parsed = JSON.parse(results);
     const dayData = parsed.default.trendingSearchesDays?.[0];
     if (!dayData) return null;
-
     return dayData.trendingSearches.map((t: any) => ({
       title: t.title.query,
       traffic: t.formattedTraffic,
@@ -195,126 +336,19 @@ async function fetchDailyTrendsFromLibrary(country: string): Promise<TrendItem[]
       relatedTopics: [],
       articles: t.articles.map((a: any) => ({ title: a.title, source: a.source, url: a.url })),
       fetchedAt: new Date(),
-      isFallback: false,
-      sourceType: "api"
+      isFallback: false
     }));
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 async function generateAIFallbackTrends(): Promise<TrendItem[]> {
-  return [...curatedTopicBank]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 10)
-    .map(c => ({
-      title: c.title,
-      traffic: "High Demand",
-      relatedQueries: c.tags,
-      relatedTopics: [],
-      articles: [],
-      fetchedAt: new Date(),
-      isFallback: true,
-      sourceType: "ai-fallback"
-    }));
-}
-
-async function saveTrendsToCache(dateKey: string, country: string, trends: any[], source: string, isFallback: boolean) {
-  if (!trends || trends.length === 0) return;
-  await DailyTrend.findOneAndUpdate(
-    { dateKey, country },
-    { dateKey, country, source, isFallback, trends, updatedAt: new Date() },
-    { upsert: true }
-  );
-}
-
-/**
- * 2. getTrendDetails(keyword, country = "IN")
- */
-export async function getTrendDetails(keyword: string, country = "IN") {
-  const detail: any = { keyword, interestOverTime: [], interestByRegion: [], relatedQueries: [], relatedTopics: [] };
-  
-  const safeParse = (str: string) => {
-    try {
-      if (str.trim().startsWith("<")) return null;
-      return JSON.parse(str);
-    } catch (e) { return null; }
-  };
-
-  // 1. Try Live Google Data (Partial fail ok)
-  try {
-    const iot = await googleTrends.interestOverTime({ keyword, geo: country }).catch(() => null);
-    if (iot) {
-      const parsed = safeParse(iot);
-      if (parsed) detail.interestOverTime = parsed.default?.timelineData || [];
-    }
-
-    const ibr = await googleTrends.interestByRegion({ keyword, geo: country }).catch(() => null);
-    if (ibr) {
-      const parsed = safeParse(ibr);
-      if (parsed) detail.interestByRegion = parsed.default?.geoMapData || [];
-    }
-  } catch (e) {}
-
-  // 2. Enrich with AI (ALWAYS provide strong content)
-  const enrichment = await enrichTrendWithAI(keyword, detail);
-  
-  return {
-    ...detail,
-    ...enrichment,
-    // Fill gaps if AI didn't return some fields
-    relatedQueries: (detail.relatedQueries?.length > 0 ? detail.relatedQueries : enrichment.relatedQueries) || [],
-    relatedTopics: (detail.relatedTopics?.length > 0 ? detail.relatedTopics : enrichment.relatedTopics) || []
-  };
-}
-
-export async function enrichTrendWithAI(keyword: string, trendData: any) {
-  try {
-    const systemPrompt = `Analyze Google Trend: "${keyword}". 
-You MUST provide high-fidelity marketing intelligence. No generic placeholders.
-
-Return exactly this JSON structure:
-{
-  "explanation": "Detailed explanation of what is happening (2-3 sentences)",
-  "whyTrending": "Specific reason why this is exploding in India right now",
-  "yesCityAngle": "Strong marketing concept for a city discovery brand",
-  "relatedQueries": ["query 1", "query 2", "query 3"],
-  "relatedTopics": ["topic 1", "topic 2", "topic 3"],
-  "platformQueries": {
-    "instagram": ["reels", "hashtags"],
-    "youtube": ["search terms"],
-    "news": ["search phrases"]
-  },
-  "postIdeas": ["Detailed post idea 1", "Detailed post idea 2", "Detailed post idea 3"],
-  "reelIdeas": ["POV reel idea 1", "Vlog style idea 2", "Interview idea 3"]
-}`;
-
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: `Raw Data Context: ${JSON.stringify(trendData)}` }],
-      model: "llama-3.3-70b-versatile",
-      response_format: { type: "json_object" },
-    });
-
-    const content = completion.choices[0].message.content || "{}";
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("[GoogleTrends] AI Enrichment failed:", error);
-    return {
-      explanation: `Trending search for ${keyword} in India.`,
-      whyTrending: "Increased local search volume across multiple regions.",
-      yesCityAngle: "Focus on community engagement and city discovery around this theme.",
-      relatedQueries: [`${keyword} today`, `${keyword} india`, `${keyword} meaning`],
-      relatedTopics: ["Current Events", "India", "Social Trends"],
-      platformQueries: { instagram: [keyword], youtube: [keyword], news: [keyword] },
-      postIdeas: ["Top 5 things about " + keyword, "City reaction to " + keyword, "Community guide"],
-      reelIdeas: ["POV: Living through " + keyword, "Quick facts", "Street vibe"]
-    };
-  }
-}
-
-export async function refreshDailyTrends(country = "IN") {
-  const dateKey = new Date().toISOString().split("T")[0];
-  // Only refresh if we want to force new RSS/API data
-  await DailyTrend.deleteOne({ dateKey, country });
-  return await getDailyTopTrends(country);
+  return [...curatedTopicBank].sort(() => Math.random() - 0.5).slice(0, 10).map(c => ({
+    title: c.title,
+    traffic: "High Demand",
+    relatedQueries: c.tags,
+    relatedTopics: [],
+    articles: [],
+    fetchedAt: new Date(),
+    isFallback: true
+  }));
 }

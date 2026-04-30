@@ -210,8 +210,11 @@ function SavedIdeaRow({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+import { Header } from "@/components/Header";
+
 export default function IdeaGeneratorPage() {
   const [topic, setTopic] = useState("");
+  // ... rest of state stays the same
   const [platform, setPlatform] = useState("Instagram");
   const [tone, setTone] = useState("Inspirational");
   const [targetAudience, setTargetAudience] = useState("");
@@ -315,170 +318,176 @@ export default function IdeaGeneratorPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Lightbulb size={18} className="text-[#53A9EF]" />
-          <h1 className="section-title text-xl">Quick Idea Generator</h1>
-        </div>
-        <p className="section-sub">
-          AI Content Strategist + Production Planner. Get 5 complete execution packages with concepts, strategy, and frame-by-frame prompts.
-        </p>
-      </div>
+    <div className="flex flex-col h-screen bg-[#0F111A]">
+      <Header />
 
-      {/* Alert */}
-      {alert && (
-        <div className={`alert-${alert.type} animate-in fade-in duration-300`}>
-          {alert.type === "error" ? (
-            <AlertCircle size={15} className="mt-0.5 shrink-0" />
-          ) : (
-            <CheckCircle size={15} className="mt-0.5 shrink-0" />
-          )}
-          <span>{alert.message}</span>
-        </div>
-      )}
-
-      {/* Form */}
-      <div className="card">
-        <h2 className="text-sm font-bold text-[#F0F2F8] mb-4 flex items-center gap-2">
-          <Zap size={14} className="text-[#53A9EF]" />
-          Define Your Content Goals
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div className="sm:col-span-2">
-            <label className="label">Topic / City / Campaign Need *</label>
-            <input
-              className="input"
-              placeholder="e.g. Jaipur travel, Monsoon getaways, Diwali in Varanasi"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-            />
-          </div>
+      <main className="flex-1 overflow-y-auto scrollbar-thin scroll-smooth">
+        <div className="max-w-4xl mx-auto py-10 px-6 space-y-8">
+          {/* Header Title */}
           <div>
-            <label className="label">Platform *</label>
-            <select
-              className="select"
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-            >
-              {PLATFORMS.map((p) => (
-                <option key={p} value={p}>
-                  {PLATFORM_EMOJI[p]} {p}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Tone *</label>
-            <select
-              className="select"
-              value={tone}
-              onChange={(e) => setTone(e.target.value)}
-            >
-              {TONES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="label">Target Audience *</label>
-            <input
-              className="input"
-              placeholder="e.g. Solo travelers, Startup founders, Budget backpackers"
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-            />
-          </div>
-        </div>
-        <button onClick={handleGenerate} disabled={generating} className="btn-primary w-full">
-          {generating ? (
-            <>
-              <Loader2 size={14} className="animate-spin" /> 
-              Consulting AI Strategist...
-            </>
-          ) : (
-            <>
-              <Sparkles size={14} /> Generate 5 AI Concepts
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Generated ideas */}
-      {ideas.length > 0 && (
-        <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="section-title">Execution Packages</h2>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${generationSource === 'AI' ? 'bg-[#53A9EF]/10 text-[#53A9EF] border-[#53A9EF]/20' : 'bg-[#8B90A7]/10 text-[#8B90A7] border-[#8B90A7]/20'}`}>
-                  {generationSource === 'AI' ? 'POWERED BY GROQ' : 'FALLBACK ENGINE'}
-                </span>
-              </div>
-              <p className="section-sub">
-                Targeting {targetAudience} on {platform}
-              </p>
+            <div className="flex items-center gap-2 mb-1">
+              <Lightbulb size={18} className="text-[#53A9EF]" />
+              <h1 className="section-title text-xl">Quick Idea Generator</h1>
             </div>
-            <button onClick={handleSave} disabled={saving} className="btn-secondary">
-              {saving ? (
+            <p className="section-sub">
+              AI Content Strategist + Production Planner. Get 5 complete execution packages with concepts, strategy, and frame-by-frame prompts.
+            </p>
+          </div>
+
+          {/* Alert */}
+          {alert && (
+            <div className={`alert-${alert.type} animate-in fade-in duration-300`}>
+              {alert.type === "error" ? (
+                <AlertCircle size={15} className="mt-0.5 shrink-0" />
+              ) : (
+                <CheckCircle size={15} className="mt-0.5 shrink-0" />
+              )}
+              <span>{alert.message}</span>
+            </div>
+          )}
+
+          {/* Form */}
+          <div className="card">
+            <h2 className="text-sm font-bold text-[#F0F2F8] mb-4 flex items-center gap-2">
+              <Zap size={14} className="text-[#53A9EF]" />
+              Define Your Content Goals
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="sm:col-span-2">
+                <label className="label">Topic / City / Campaign Need *</label>
+                <input
+                  className="input"
+                  placeholder="e.g. Jaipur travel, Monsoon getaways, Diwali in Varanasi"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+                />
+              </div>
+              <div>
+                <label className="label">Platform *</label>
+                <select
+                  className="select"
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                >
+                  {PLATFORMS.map((p) => (
+                    <option key={p} value={p}>
+                      {PLATFORM_EMOJI[p]} {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Tone *</label>
+                <select
+                  className="select"
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                >
+                  {TONES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label">Target Audience *</label>
+                <input
+                  className="input"
+                  placeholder="e.g. Solo travelers, Startup founders, Budget backpackers"
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value)}
+                />
+              </div>
+            </div>
+            <button onClick={handleGenerate} disabled={generating} className="btn-primary w-full">
+              {generating ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" /> Saving...
+                  <Loader2 size={14} className="animate-spin" /> 
+                  Consulting AI Strategist...
                 </>
               ) : (
                 <>
-                  <Save size={14} /> Save Strategy
+                  <Sparkles size={14} /> Generate 5 AI Concepts
                 </>
               )}
             </button>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {ideas.map((idea, i) => (
-              <IdeaCard key={i} idea={idea} index={i} generationSource={generationSource || "Rule-based"} />
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* History */}
-      <div className="divider" />
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="section-title">Saved Strategy History</h2>
-          <button
-            onClick={loadHistory}
-            disabled={loadingHistory}
-            className="btn-secondary text-xs"
-          >
-            {loadingHistory ? (
-              <>
-                <Loader2 size={12} className="animate-spin" /> Loading...
-              </>
+          {/* Generated ideas */}
+          {ideas.length > 0 && (
+            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="section-title">Execution Packages</h2>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${generationSource === 'AI' ? 'bg-[#53A9EF]/10 text-[#53A9EF] border-[#53A9EF]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                      {generationSource === 'AI' ? 'POWERED BY GROQ' : 'FALLBACK MODE'}
+                    </span>
+                  </div>
+                  <p className="section-sub">
+                    Targeting {targetAudience} on {platform}
+                  </p>
+                </div>
+                <button onClick={handleSave} disabled={saving} className="btn-secondary">
+                  {saving ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} /> Save Strategy
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {ideas.map((idea, i) => (
+                  <IdeaCard key={i} idea={idea} index={i} generationSource={generationSource || "Rule-based"} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* History */}
+          <div className="divider" />
+          <div className="pb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="section-title">Saved Strategy History</h2>
+              <button
+                onClick={loadHistory}
+                disabled={loadingHistory}
+                className="btn-secondary text-xs"
+              >
+                {loadingHistory ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" /> Loading...
+                  </>
+                ) : (
+                  <>
+                    <Clock size={12} /> Load Recent
+                  </>
+                )}
+              </button>
+            </div>
+            {savedIdeas.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {savedIdeas.map((s) => (
+                  <SavedIdeaRow key={s._id} saved={s} />
+                ))}
+              </div>
             ) : (
-              <>
-                <Clock size={12} /> Load Recent
-              </>
+              <div className="card border-dashed text-center py-8">
+                <Lightbulb size={24} className="text-[#555870] mx-auto mb-2" />
+                <p className="text-sm text-[#555870]">
+                  No saved strategies yet. Click &quot;Load Recent&quot; after saving.
+                </p>
+              </div>
             )}
-          </button>
+          </div>
         </div>
-        {savedIdeas.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {savedIdeas.map((s) => (
-              <SavedIdeaRow key={s._id} saved={s} />
-            ))}
-          </div>
-        ) : (
-          <div className="card border-dashed text-center py-8">
-            <Lightbulb size={24} className="text-[#555870] mx-auto mb-2" />
-            <p className="text-sm text-[#555870]">
-              No saved strategies yet. Click &quot;Load Recent&quot; after saving.
-            </p>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
   );
 }

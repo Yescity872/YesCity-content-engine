@@ -4,36 +4,46 @@
  * Upgraded for YesCity AI Trend-to-Content Engine MVP.
  */
 
-import { generateIdeasWithGroq } from "./groqService";
+import { aiRouter } from "./ai/aiRouter";
 import type { ContentIdea, GenerateIdeasInput } from "@/types";
 
-export async function generateIdeas(input: GenerateIdeasInput): Promise<{ ideas: ContentIdea[], source: "AI" | "Rule-based" }> {
-  const { topic } = input;
+export async function generateIdeas(input: GenerateIdeasInput): Promise<{ ideas: ContentIdea[], source: "AI" | "Rule-based" | "fallback" }> {
+  const { topic, platform, tone, targetAudience } = input;
 
-  // 1. Try Groq (AI) first
-  if (process.env.GROQ_API_KEY) {
-    try {
-      const ideas = await generateIdeasWithGroq(input);
-      if (ideas && ideas.length > 0) {
-        return { 
-          ideas: ideas.map((id: any) => ({
-            ...id,
-            // Ensure title/ideaTitle compatibility
-            ideaTitle: id.ideaTitle || id.title || `Idea for ${topic}`,
-            referenceContent: id.referenceContent || [],
-            productionPrompts: id.productionPrompts || [],
-          })), 
-          source: "AI" 
-        };
-      }
-    } catch (error) {
-      console.error("[IdeaGeneratorService] Groq failed, falling back to rule-based:", error);
-    }
-  }
+  const systemPrompt = `You are the YesCity AI Content Strategist.
+Your goal is to generate 5 high-performing, viral content ideas for ${platform}.
+Target Audience: ${targetAudience}
+Tone: ${tone}
+Topic: ${topic}
 
-  // 2. Rule-based Fallback
-  const ideas = generateIdeasRuleBased(input);
-  return { ideas, source: "Rule-based" };
+Rules:
+1. Each idea must be a complete execution package.
+2. Focus on local Indian city nuances where applicable.
+3. Include title, conceptSummary, whyItWorks, contentAngle, hook, caption, cta, format, visualStyle, audioMood.
+4. Also include "productionPrompts" (array of 3 steps).
+
+Return ONLY a JSON object with key "ideas".`;
+
+  console.log(`[IdeaGenerator] Requesting ideas for: ${topic}...`);
+
+  const response = await aiRouter.generateStructured({
+    purpose: "postReelIdeas",
+    systemPrompt,
+    userPrompt: `Generate 5 ideas for ${topic} on ${platform} for ${targetAudience}.`,
+    inputForCache: input
+  });
+
+  const ideas = (response.ideas || []).map((id: any) => ({
+    ...id,
+    ideaTitle: id.ideaTitle || id.title || `Idea for ${topic}`,
+    referenceContent: id.referenceContent || [],
+    productionPrompts: id.productionPrompts || [],
+  }));
+
+  return { 
+    ideas, 
+    source: response.status === "fallback" ? "Rule-based" : "AI" 
+  };
 }
 
 function generateIdeasRuleBased(input: GenerateIdeasInput): ContentIdea[] {

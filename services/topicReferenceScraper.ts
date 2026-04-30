@@ -5,29 +5,17 @@ import { scrapeWithInstaTouch } from "./sourceAdapters/instagramInstaTouchAdapte
 import { scrapeWithSnapscrape } from "./sourceAdapters/instagramSnapscrapeAdapter";
 import { scrapeWithPuppeteer } from "./sourceAdapters/instagramPuppeteerAdapter";
 import { generateFallbackIntelligence } from "./trendTopicService";
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || "",
-});
+import { aiRouter } from "./ai/aiRouter";
 
 async function generateAiMarketingNote(topicTitle: string, caption: string): Promise<string> {
-  try {
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a YesCity production strategist. Analyze the content of this reel (via its caption) and give a 1-sentence instruction on EXACTLY how to replicate its visual style or hook for an Indian city guide. Focus on creative shots and local vibes." 
-        },
-        { role: "user", content: `Trend Topic: ${topicTitle}\nReel Content/Caption: ${caption}` },
-      ],
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 100,
-    });
-    return completion.choices[0].message.content?.trim() || "Use this visual transition to reveal hidden city spots.";
-  } catch (err) {
-    return "Replicate this creative format to showcase local city culture.";
-  }
+  const result = await aiRouter.generateStructured({
+    purpose: "trendDetail",
+    systemPrompt: "You are a YesCity production strategist. Analyze the content of this reel (via its caption) and give a 1-sentence instruction on EXACTLY how to replicate its visual style or hook for an Indian city guide. Focus on creative shots and local vibes.",
+    userPrompt: `Trend Topic: ${topicTitle}\nReel Content/Caption: ${caption}`,
+    inputForCache: { topicTitle, caption: caption.slice(0, 100) }
+  });
+
+  return result.instruction || result.note || "Replicate this creative format to showcase local city culture.";
 }
 
 /**
