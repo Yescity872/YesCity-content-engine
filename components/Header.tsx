@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, Lightbulb, TrendingUp, Zap } from "lucide-react";
+import { Sparkles, Lightbulb, TrendingUp, Zap, Target, BarChart3 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 export const Header = ({ 
@@ -47,6 +47,22 @@ export const Header = ({
               >
                 <TrendingUp size={14} /> Daily Trends
               </button>
+              <button 
+                onClick={() => setActiveTab("competitors")}
+                className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                  activeTab === "competitors" ? "bg-[#53A9EF] text-white shadow-xl scale-105" : "text-[#555870] hover:text-[#8B90A7]"
+                }`}
+              >
+                <BarChart3 size={14} /> Competitors
+              </button>
+              <button 
+                onClick={() => setActiveTab("ideas")}
+                className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                  activeTab === "ideas" ? "bg-[#53A9EF] text-white shadow-xl scale-105" : "text-[#555870] hover:text-[#8B90A7]"
+                }`}
+              >
+                <Zap size={14} /> Idea Generator
+              </button>
             </>
           ) : (
             <>
@@ -70,14 +86,6 @@ export const Header = ({
           )}
         </nav>
 
-        <Link 
-          href="/idea-generator"
-          className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors flex items-center gap-2 ${
-            pathname === "/idea-generator" ? "text-[#53A9EF]" : "text-[#555870] hover:text-[#53A9EF]"
-          }`}
-        >
-          <Zap size={14} /> Idea Generator
-        </Link>
       </div>
 
       <div className="flex items-center gap-6">

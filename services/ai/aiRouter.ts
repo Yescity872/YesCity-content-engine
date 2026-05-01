@@ -12,7 +12,9 @@ export type AIPurpose =
   | "trendDetail" 
   | "fallbackIntelligence" 
   | "postReelIdeas" 
-  | "platformQueries";
+  | "platformQueries"
+  | "competitorAnalysis"
+  | "quickIdeaUpgrade";
 
 interface AIRouterOptions {
   purpose: AIPurpose;
@@ -20,6 +22,7 @@ interface AIRouterOptions {
   userPrompt: string;
   inputForCache: any;
   ttlHours?: number;
+  forceRefresh?: boolean;
 }
 
 const TTL_CONFIG: Record<AIPurpose, number> = {
@@ -29,7 +32,9 @@ const TTL_CONFIG: Record<AIPurpose, number> = {
   trendDetail: 24,
   fallbackIntelligence: 24,
   postReelIdeas: 48,
-  platformQueries: 168
+  platformQueries: 168,
+  competitorAnalysis: 168, // 7 days
+  quickIdeaUpgrade: 48
 };
 
 /**
@@ -46,16 +51,18 @@ export const aiRouter = {
     const cacheKey = `${purpose}_${inputHash}`;
 
     // 2. Check Cache
-    const cached = await AIResponseCache.findOne({ cacheKey });
-    if (cached) {
-      console.log(`[AI Router] Cache HIT: ${cacheKey}`);
-      return cached.output;
+    if (!options.forceRefresh && purpose !== "trendDetail") {
+      const cached = await AIResponseCache.findOne({ cacheKey });
+      if (cached) {
+        console.log(`[AI Router] Cache HIT: ${cacheKey}`);
+        return cached.output;
+      }
     }
 
     console.log(`[AI Router] Cache MISS: ${cacheKey}`);
 
     // 3. Try Groq (Primary)
-    let result = await generateWithGroq(systemPrompt, userPrompt);
+    let result = await generateWithGroq(systemPrompt, userPrompt, purpose);
 
     // 4. Try Sarvam (Secondary)
     if (!result) {

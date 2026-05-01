@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, ArrowRight, Video, FileText, ChevronLeft, RefreshCcw, ExternalLink, Play, Sparkles, Clock, Users, Globe, ChevronRight } from "lucide-react";
+import { Zap, ArrowRight, Video, FileText, ChevronLeft, RefreshCcw, ExternalLink, Play, Sparkles, Clock, Users, Globe, ChevronRight, BarChart3, Target, Building2, Info, Search, Eye } from "lucide-react";
 
 export interface IReferenceItem {
   platform: "youtube" | "instagram" | "web";
@@ -194,7 +194,7 @@ export const PaginatedTrendView = ({ topics, onKnowMore }: { topics: any[], onKn
             onClick={() => setCurrentIndex(prev => prev + 1)}
             className="w-12 h-12 rounded-full bg-[#1A1D27] border border-[#2A2D3E] flex items-center justify-center text-white hover:bg-[#53A9EF] hover:border-[#53A9EF] transition-all disabled:opacity-20 disabled:cursor-not-allowed group/btn shadow-lg"
           >
-            <ArrowRight size={20} className="transition-transform group-hover/btn:translate-x-0.5" />
+            <ChevronRight size={20} className="transition-transform group-hover/btn:translate-x-0.5" />
           </button>
         </div>
       )}
@@ -308,12 +308,13 @@ export const TrendCard: React.FC<TrendCardProps> = ({
         </span>
       </div>
 
+
       <button
         onClick={onKnowMore}
         disabled={status !== "ready"}
         className="btn-primary w-full text-xs py-2.5 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:grayscale"
       >
-        {status === "ready" ? "Know More" : "Discovery in progress..."} 
+        {status === "ready" ? "Detailed Analysis & Ideas" : "Discovery in progress..."} 
         <ArrowRight size={14} className={status === "ready" ? "group-hover:translate-x-1 transition-transform" : "opacity-0"} />
       </button>
     </div>
@@ -472,50 +473,155 @@ export const TrendDetailView: React.FC<{
         )}
       </div>
 
-      {/* Phase 2: Research Pathways */}
-      {detail.topicExpansion && (
-        <div className="bg-[#1A1C2E] border border-[#2A2D3E] p-6 rounded-[32px]">
-          <div className="flex flex-col gap-2 mb-6">
+      {/* Phase 6: X / LinkedIn Research Suggestions */}
+      {detail.researchSuggestions && (
+        <div className="bg-[#1A1C2E] border border-[#2A2D3E] p-6 rounded-[32px] overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <BarChart3 size={80} className="text-[#53A9EF]" />
+          </div>
+          
+          <div className="flex flex-col gap-2 mb-6 relative z-10">
             <h3 className="text-sm font-bold text-[#F0F2F8] flex items-center gap-2">
-              <Globe size={16} className="text-[#53A9EF]" /> Platform Research Pathways
+              <Zap size={16} className="text-[#53A9EF]" /> X / LinkedIn Research Pathways
             </h3>
-            <p className="text-[10px] text-[#555870] font-medium leading-relaxed max-w-lg">
-              Use these suggested search pathways to research how this trend is appearing across platforms and to find inspiration for audience sentiment and competitor coverage.
+            <p className="text-[10px] text-[#555870] font-black uppercase tracking-widest leading-relaxed">
+              {detail.researchSuggestions.x.notice}
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">Instagram Hashtags</p>
-              <div className="flex flex-wrap gap-2">
-                {detail.topicExpansion.instagramHashtags?.slice(0, 5).map((q: string) => (
-                  <span key={q} className="text-[10px] text-[#53A9EF] font-bold bg-[#53A9EF]/10 px-2.5 py-1.5 rounded-lg border border-[#53A9EF]/10">{q}</span>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+            {/* X (Twitter) Suggestions */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
+                  <span className="text-[10px] font-black text-white">X</span>
+                </div>
+                <span className="text-[10px] font-bold text-white uppercase tracking-widest">Search Directions</span>
+              </div>
+              <div className="space-y-2">
+                {detail.researchSuggestions.x.pathways.map((path: any, i: number) => (
+                  <a 
+                    key={i} 
+                    href={path.searchQuery} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block p-3 rounded-xl bg-[#0F111A] border border-[#2A2D3E] hover:border-[#53A9EF]/30 transition-all group/path"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[11px] font-bold text-[#F0F2F8]">{path.title}</span>
+                      <ExternalLink size={10} className="text-[#555870] group-hover/path:text-[#53A9EF]" />
+                    </div>
+                    <p className="text-[10px] text-[#8B90A7] leading-relaxed italic">"{path.instruction}"</p>
+                  </a>
                 ))}
               </div>
             </div>
-            <div>
-              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">YouTube Search</p>
-              <div className="flex flex-col gap-2">
-                {detail.topicExpansion.youtubeQueries?.slice(0, 3).map((q: string) => (
-                  <span key={q} className="text-[10px] text-[#F0F2F8] bg-[#2A2D3E]/50 px-3 py-2 rounded-xl border border-[#2A2D3E] leading-relaxed">{q}</span>
+
+            {/* LinkedIn Suggestions */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#0A66C2]/10 flex items-center justify-center border border-[#0A66C2]/20">
+                  <span className="text-[10px] font-black text-[#0A66C2]">in</span>
+                </div>
+                <span className="text-[10px] font-bold text-white uppercase tracking-widest">Industry Directions</span>
+              </div>
+              <div className="space-y-2">
+                {detail.researchSuggestions.linkedin.pathways.map((path: any, i: number) => (
+                  <a 
+                    key={i} 
+                    href={path.searchQuery} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block p-3 rounded-xl bg-[#0F111A] border border-[#2A2D3E] hover:border-[#53A9EF]/30 transition-all group/path"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[11px] font-bold text-[#F0F2F8]">{path.title}</span>
+                      <ExternalLink size={10} className="text-[#555870] group-hover/path:text-[#53A9EF]" />
+                    </div>
+                    <p className="text-[10px] text-[#8B90A7] leading-relaxed italic">"{path.instruction}"</p>
+                  </a>
                 ))}
               </div>
             </div>
-            <div>
-              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">Competitor Keywords</p>
-              <div className="flex flex-wrap gap-2">
-                {detail.topicExpansion.competitorKeywords?.slice(0, 3).map((q: string) => (
-                  <span key={q} className="text-[10px] text-amber-500 bg-amber-500/10 px-2.5 py-1.5 rounded-lg border border-amber-500/10 font-bold leading-relaxed">{q}</span>
-                ))}
-              </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-[#2A2D3E] flex items-center gap-3">
+            <Target size={14} className="text-[#53A9EF]" />
+            <p className="text-[10px] text-[#8B90A7] font-medium leading-relaxed">
+              <span className="text-[#53A9EF] font-bold uppercase mr-1">Strategic Advice:</span> 
+              {detail.researchSuggestions.x.strategicInference}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 4 Overhaul: Competitor Strategy Matrix */}
+      {detail.competitorAnalysis && detail.competitorAnalysis.matrix && (
+        <div className="space-y-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-xl font-black text-white flex items-center gap-3">
+              <BarChart3 size={24} className="text-[#53A9EF]" /> Competitor Strategy Matrix
+            </h3>
+            <div className="flex gap-3 p-4 rounded-2xl bg-[#53A9EF]/5 border border-[#53A9EF]/10 items-start max-w-2xl">
+              <Zap size={16} className="text-[#53A9EF] shrink-0 mt-0.5" />
+              <p className="text-[10px] text-[#8B90A7] leading-relaxed font-medium italic">
+                <strong className="text-[#53A9EF] uppercase not-italic mr-1">Strategic Matrix:</strong> How top Indian travel players are likely positioning against this trend.
+              </p>
             </div>
-            <div>
-              <p className="text-[10px] uppercase text-[#555870] font-black tracking-widest mb-2">LinkedIn / X Context</p>
-              <div className="flex flex-col gap-2">
-                {detail.topicExpansion.linkedinQueries?.slice(0, 2).map((q: string) => (
-                  <span key={q} className="text-[10px] text-[#8B90A7] bg-[#2A2D3E]/50 px-3 py-2 rounded-xl border border-[#2A2D3E] leading-relaxed">{q}</span>
-                ))}
-              </div>
+          </div>
+
+          <div className="bg-[#1A1D27] border border-[#2A2D3E] rounded-[32px] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#1F222F] border-b border-[#2A2D3E]">
+                    <th className="p-6 text-[10px] font-black text-[#555870] uppercase tracking-widest">Competitor</th>
+                    <th className="p-6 text-[10px] font-black text-[#555870] uppercase tracking-widest">Likely Angle</th>
+                    <th className="p-6 text-[10px] font-black text-[#555870] uppercase tracking-widest">Format</th>
+                    <th className="p-6 text-[10px] font-black text-[#10B981] uppercase tracking-widest">YesCity Opportunity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2A2D3E]">
+                  {detail.competitorAnalysis.matrix.map((row: any, i: number) => (
+                    <tr key={i} className="hover:bg-[#1F222F]/40 transition-colors">
+                      <td className="p-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-[#53A9EF]/10 flex items-center justify-center border border-[#53A9EF]/20">
+                            <Building2 size={14} className="text-[#53A9EF]" />
+                          </div>
+                          <span className="text-sm font-bold text-white">{row.competitor}</span>
+                        </div>
+                      </td>
+                      <td className="p-6 text-[13px] text-[#8B90A7] leading-relaxed italic">"{row.likelyAngle}"</td>
+                      <td className="p-6">
+                        <span className="px-3 py-1 rounded-full bg-[#1A1D27] border border-[#2A2D3E] text-[10px] font-bold text-white uppercase tracking-tighter">
+                          {row.format}
+                        </span>
+                      </td>
+                      <td className="p-6">
+                        <div className="flex items-start gap-2 max-w-xs">
+                           <ArrowRight size={14} className="text-[#10B981] mt-1 shrink-0" />
+                           <p className="text-[12px] text-[#F0F2F8] font-bold leading-relaxed">{row.yesCityOpportunity}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4">
+             <div className="flex-1 p-5 rounded-3xl bg-[#0F111A] border border-[#2A2D3E]">
+                <span className="text-[10px] font-black text-[#555870] uppercase tracking-widest block mb-1">Overall Market Sentiment</span>
+                <p className="text-[11px] text-[#8B90A7] italic">{detail.competitorAnalysis.marketSentiment}</p>
+             </div>
+             <div className="p-5 rounded-3xl bg-[#53A9EF]/5 border border-[#53A9EF]/10 flex items-center gap-4">
+                <Info size={16} className="text-[#53A9EF]" />
+                <p className="text-[9px] text-[#8B90A7] leading-relaxed max-w-xs">
+                  Strategy inferred from public brand behavior. Use the "Optional Ad Verification" in the main Competitor Dashboard to check live campaigns.
+                </p>
+             </div>
           </div>
         </div>
       )}

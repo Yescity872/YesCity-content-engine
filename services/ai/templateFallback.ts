@@ -103,6 +103,55 @@ export const getTemplateFallback = (purpose: string, input: any) => {
         }))
       };
 
+    case "competitorAnalysis":
+      return {
+        isFallback: true,
+        latestFocus: `Expanding ${input.competitorName} Presence in Indian Local Markets`,
+        strategySummary: `${input.competitorName} is currently focusing on hyper-local community discovery and influencer-led travel storytelling across Tier-1 and Tier-2 cities.`,
+        contentThemes: ["Authentic Local Stays", "Hidden Culinary Gems", "Budget-Friendly Luxury"],
+        audienceTargeting: ["Gen-Z Solo Travelers", "Urban Family Explorers"],
+        campaignStyle: ["User-Generated Content", "Cinematic Travelogues"],
+        strengths: ["Brand Trust", "Deep Inventory", "App Ecosystem"],
+        yesCityOpportunities: ["Focus on 'The Insider Secret' angle which bigger brands miss", "Hyper-local community interaction"],
+        proofLinks: [
+          { title: `${input.competitorName} Official Blog`, url: `https://www.google.com/search?q=${input.competitorName}+official+blog`, source: "Public Search" }
+        ]
+      };
+
+    case "quickIdeaUpgrade":
+      return {
+        isFallback: true,
+        postIdeas: Array(5).fill({
+          title: `Guide to ${input.topic}`,
+          concept: `Curated carousel for ${input.audience}`,
+          hook: `The ultimate ${input.topic} guide you missed.`,
+          caption: `Discover ${input.topic} like never before.`,
+          CTA: "Save this post",
+          hashtags: "#YesCity #LocalVibes",
+          whyItWorks: "High utility value",
+          executionSteps: ["Step 1: Research", "Step 2: Design", "Step 3: Post"],
+          difficulty: "Beginner",
+          estimatedTime: "2 hours",
+          assignedRole: "Designer"
+        }),
+        reelIdeas: Array(5).fill({
+          title: `${input.topic} in 60 seconds`,
+          concept: "Cinematic montage",
+          hook: "POV: You found the heart of the city",
+          sceneBreakdown: ["0-5s: Hook", "5-15s: Body", "15-60s: Outro"],
+          caption: "City vibes only.",
+          CTA: "Share this reel",
+          hashtags: "#ReelsIndia #CityLife",
+          editingStyle: "Fast-cuts",
+          whyItWorks: "Visual engagement",
+          difficulty: "Intermediate",
+          estimatedTime: "4 hours",
+          assignedRole: "Video Editor"
+        }),
+        recommendedPlatforms: ["Instagram", "YouTube"],
+        contentCalendarSuggestion: "Post during peak evening hours for maximum engagement."
+      };
+
     default:
       return {
         isFallback: true,

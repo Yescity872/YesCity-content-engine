@@ -37,18 +37,30 @@ export async function searchYouTubeReferences(
   }
 
   try {
-    // 1. Pick the best query or combine them
-    const searchQuery = `${topicTitle} ${queries.slice(0, 2).join(" ")} ${region === "IN" ? "India" : ""}`;
-    console.log(`[YouTube] Searching for: "${searchQuery}"`);
+    // 1. Randomize query selection and add 'shorts' focus with a random seed for diversity
+    const randomSeed = Math.random().toString(36).substring(2, 10);
+    const randomSubQuery = queries.length > 0 ? queries[Math.floor(Math.random() * queries.length)] : "";
+    // Use quotes for exact topic matching and negative keywords to avoid cricket crossover for non-cricket topics
+    const isCricketTopic = topicTitle.toLowerCase().includes("cricket") || topicTitle.toLowerCase().includes("ipl");
+    const negativeFilters = isCricketTopic ? "" : "-cricket -ipl -dhoni -kohli";
+    // Inject random seed into the query itself to force YouTube to vary the ranking
+    const searchQuery = `"${topicTitle}" ${randomSubQuery} ${randomSeed} ${negativeFilters} shorts India`.trim();
+    console.log(`[YouTube] Searching for: "${searchQuery}" (High Jitter Focus)`);
+
+    // Get date for last 30 days to ensure fresh content
+    const lastMonth = new Date();
+    lastMonth.setDate(lastMonth.getDate() - 30);
 
     const params = new URLSearchParams({
       part: "snippet",
       q: searchQuery,
-      maxResults: "5",
+      maxResults: "10", // Fetch more to allow for diversity
       relevanceLanguage: "en",
       regionCode: region,
       type: "video",
+      videoDuration: "short", // < 4 minutes
       videoEmbeddable: "true",
+      publishedAfter: lastMonth.toISOString(),
       key: YOUTUBE_API_KEY
     });
 
@@ -77,8 +89,6 @@ export async function searchYouTubeReferences(
     const detailsData = await detailsResponse.json();
 
     const references: YouTubeReference[] = detailsData.items.map((item: any) => {
-      // Determine if it's a Short (naive check: duration < 60s or aspect ratio, but YouTube API doesn't explicitly flag Shorts easily)
-      // We'll use duration if possible. ISO 8601 duration format: PT#M#S
       const duration = item.contentDetails.duration;
       const isShort = duration.includes("S") && !duration.includes("H") && (!duration.includes("M") || duration.match(/PT(\d+)M/)?.[1] === "0");
 
@@ -101,7 +111,8 @@ export async function searchYouTubeReferences(
       };
     });
 
-    return references;
+    // Shuffle and take 5 for diversity
+    return references.sort(() => Math.random() - 0.5).slice(0, 5);
 
   } catch (error) {
     console.error("[YouTube] Critical Error:", error);

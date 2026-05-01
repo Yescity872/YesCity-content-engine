@@ -8,6 +8,9 @@ import { expandTopicIntelligence } from "./topicExpansionService";
 import TrendReference from "@/models/TrendReference";
 import { getLiveReferencesForTopic } from "./liveReferenceService";
 import TrendTopic from "@/models/TrendTopic";
+import { getXResearchSuggestions } from "./sourceAdapters/xAdapter";
+import { getLinkedInResearchSuggestions } from "./sourceAdapters/linkedinAdapter";
+import { getCompetitorAnalysisForTrend } from "./competitorInsightService";
 
 export interface TrendItem {
   title: string;
@@ -206,16 +209,26 @@ export async function getTrendDetails(keyword: string, country = "IN") {
   }
 
   // 2. AI Enrichment (MANDATORY High-Fidelity)
-  const enrichment = await enrichTrendWithAI(keyword, detail);
+  // Optimization: Trim chart data to stay within Token Limits
+  const trimmedData = {
+    keyword: detail.keyword,
+    relatedQueries: detail.relatedQueries?.slice(0, 5),
+    relatedTopics: detail.relatedTopics?.slice(0, 5)
+  };
+
+  const enrichment = await enrichTrendWithAI(keyword, trimmedData);
   
   // 3. PHASE 2: Topic Expansion Engine
   const expansion = await expandTopicIntelligence(keyword, "Daily Trend", country);
   
     // 4. PHASE 3: Live Reference Engine
-    const references = await TrendReference.find({ 
+    let references = await TrendReference.find({ 
       topic: keyword, 
       expiresAt: { $gt: new Date() } 
-    }).limit(6);
+    });
+
+    // Shuffle and limit to 6 for UI diversity
+    references = references.sort(() => Math.random() - 0.5).slice(0, 6);
 
     // If no fresh references, trigger a background scrape (fire and forget for this request)
     if (references.length === 0) {
@@ -241,7 +254,12 @@ export async function getTrendDetails(keyword: string, country = "IN") {
       linkedin: expansion?.linkedinQueries || []
     },
     topicExpansion: expansion,
-    references: references // Pass existing references to UI
+    references: references, // Pass existing references to UI
+    researchSuggestions: {
+      x: await getXResearchSuggestions(keyword),
+      linkedin: await getLinkedInResearchSuggestions(keyword)
+    },
+    competitorAnalysis: await getCompetitorAnalysisForTrend(keyword, country)
   };
 }
 
@@ -254,54 +272,21 @@ export async function refreshDailyTrends(country = "IN") {
 }
 
 export async function enrichTrendWithAI(keyword: string, trendData: any) {
-  const systemPrompt = `You are the Lead Strategist for YesCity AI, a high-end local discovery and brand storytelling agency. 
-Analyze the trend: "${keyword}".
-
-MISSION: 
-Convert this trend into high-velocity content ideas for YesCity. 
-YesCity's voice is premium, insider-focused, and deeply local. 
-
-NEVER provide generic life advice or broad facts. 
-ALWAYS anchor ideas to the YesCity mission: Discovering the best of Indian cities (food, travel, culture, events, and brand gems).
+  const systemPrompt = `You are a YesCity production strategist.
+MISSION: Convert this trend into high-velocity content for Indian city discovery (food, travel, culture, events).
+VOICE: Premium, insider-focused, deeply local. NEVER generic facts.
 
 Return exactly this JSON:
 {
-  "explanation": "2-3 sentences explaining exactly what this is and why it's happening in India.",
-  "whyTrending": "Identify the cultural, news, or social trigger behind this surge.",
-  "yesCityAngle": "A specific content strategy that connects this trend to local discovery or a brand story (e.g., 'Mapping this trend to the best cafes in Bandra').",
-  "relatedQueries": ["Specific search term 1", "Search term 2", "Search term 3"],
-  "relatedTopics": ["Topic cluster 1", "Topic 2", "Topic 3"],
-  "platformQueries": {
-    "instagram": ["hashtag 1", "hashtag 2"],
-    "youtube": ["search phrase 1", "search phrase 2"],
-    "news": ["headline search 1"]
-  },
-  "postIdeas": [
-    {
-      "title": "Strategy-driven title",
-      "concept": "Explanation of the post concept",
-      "hook": "Specific text hook",
-      "whyItWorks": "Marketing rationale",
-      "caption": "Full Instagram/Social caption",
-      "cta": "Strong Call to Action",
-      "sceneBreakdown": ["Slide 1 content", "Slide 2 content", "..."],
-      "aiPrompt": "Specific prompt for AI image generation"
-    }
-  ],
-  "reelIdeas": [
-    {
-      "title": "Viral title",
-      "concept": "Explanation of the reel concept",
-      "hook": "Strong verbal or visual hook",
-      "format": "POV / Mini-Doc / etc",
-      "whyItWorks": "Psychological trigger",
-      "caption": "Full Reel caption",
-      "cta": "Strong Call to Action",
-      "sceneBreakdown": ["0-3s: Action", "3-7s: Transition", "..."],
-      "aiPrompt": "Specific prompt for AI video generation"
-    }
-  ],
-  "strategicRec": "One expert tip on how to dominate this trend locally."
+  "explanation": "2-3 sentences on what this is and why it's trending in India.",
+  "whyTrending": "Cultural or news trigger.",
+  "yesCityAngle": "Specific content strategy connecting this to local discovery.",
+  "relatedQueries": ["term 1", "term 2"],
+  "relatedTopics": ["topic 1", "topic 2"],
+  "platformQueries": { "instagram": ["#1"], "youtube": ["search 1"], "news": ["search 1"] },
+  "postIdeas": [{ "title": "...", "concept": "...", "hook": "...", "whyItWorks": "...", "caption": "...", "cta": "...", "sceneBreakdown": ["..."], "aiPrompt": "..." }],
+  "reelIdeas": [{ "title": "...", "concept": "...", "hook": "...", "format": "...", "whyItWorks": "...", "caption": "...", "cta": "...", "sceneBreakdown": ["..."], "aiPrompt": "..." }],
+  "strategicRec": "Expert tip."
 }`;
 
   console.log(`[GoogleTrends] Requesting enrichment for: ${keyword}...`);

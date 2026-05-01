@@ -19,6 +19,8 @@ import {
 import { TrendCard, TrendDetailView, PaginatedTrendView } from "@/components/ChatComponents";
 import { DailyTrendDashboard } from "@/components/DailyTrendComponents";
 import { Header } from "@/components/Header";
+import { CompetitorDashboard } from "@/components/CompetitorDashboard";
+import { IdeaGeneratorDashboard } from "@/components/IdeaGeneratorDashboard";
 
 interface Message {
   id: string;
@@ -29,7 +31,7 @@ interface Message {
 }
 
 export default function ChatAssistant() {
-  const [activeTab, setActiveTab] = useState<"discover" | "daily">("discover");
+  const [activeTab, setActiveTab] = useState<"discover" | "daily" | "competitors" | "ideas">("discover");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -383,6 +385,10 @@ export default function ChatAssistant() {
         <div className="max-w-4xl mx-auto py-10 px-6">
           {activeTab === "daily" ? (
             <DailyTrendDashboard onDiveDeeper={handleDiveDeeper} />
+          ) : activeTab === "competitors" ? (
+            <CompetitorDashboard />
+          ) : activeTab === "ideas" ? (
+            <IdeaGeneratorDashboard />
           ) : (
             <>
               {messages.map((m) => (

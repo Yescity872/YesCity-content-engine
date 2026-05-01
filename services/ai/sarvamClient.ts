@@ -15,19 +15,18 @@ export const generateWithSarvam = async (systemPrompt: string, userPrompt: strin
     console.log("[SarvamClient] Requesting completion...");
     // Note: This uses the standard Sarvam chat completion endpoint
     // Documentation: https://www.sarvam.ai/docs
-    const response = await fetch("https://api.sarvam.ai/api/v1/chat/completions", {
+    const response = await fetch("https://api.sarvam.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "api-subscription-key": apiKey
       },
       body: JSON.stringify({
-        model: "sarvam-2b", // Using the 2b model which is standard for chat
+        model: "sarvam-1",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" }
+        ]
       })
     });
 

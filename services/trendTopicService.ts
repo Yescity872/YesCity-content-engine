@@ -21,10 +21,12 @@ export async function getOrCreateWeeklyTopics(weekId: string, forceRefresh: bool
   await TrendReference.deleteMany({ scrapedAt: { $lt: oneDayAgo } });
 
   // 1. Check if topics already exist
-  const existingCount = await TrendTopic.countDocuments({ weekId });
-  if (!forceRefresh && existingCount >= 10) {
-    const topics = await TrendTopic.find({ weekId });
-    return topics.sort(() => Math.random() - 0.5);
+  if (!forceRefresh) {
+    const existingCount = await TrendTopic.countDocuments({ weekId });
+    if (existingCount >= 10) {
+      const topics = await TrendTopic.find({ weekId });
+      return topics.sort(() => Math.random() - 0.5);
+    }
   }
 
   // Clean up old week data
@@ -61,11 +63,13 @@ Rules:
 
 Return ONLY a JSON object with key "topics".`;
 
+    const randomSeed = Math.random().toString(36).substring(7);
     const response = await aiRouter.generateStructured({
       purpose: "topicDiscovery",
-      systemPrompt: systemPrompt,
+      systemPrompt: `${systemPrompt}\n\nSeed: ${randomSeed}. Pick DIFFERENT topics than usual if possible.`,
       userPrompt: `Signals: ${allSignals.join(" | ")}`,
-      inputForCache: { weekId, signalsHash: crypto.createHash("md5").update(allSignals.join("|")).digest("hex") }
+      inputForCache: { weekId, seed: randomSeed, signalsHash: crypto.createHash("md5").update(allSignals.join("|")).digest("hex") },
+      forceRefresh: forceRefresh
     });
 
     topicsList = Array.isArray(response.topics) ? response.topics : [];
@@ -115,7 +119,7 @@ export async function generateFallbackIntelligence(topicId: string): Promise<ITr
   try {
     const systemPrompt = `You are a Trend Intelligence Engine for YesCity.
 Analyze this Indian trend and build a full marketing execution report.
-Topic: ${topic.title}`;
+Topic: ${topic.title}. Return JSON.`;
 
     const report = await aiRouter.generateStructured({
       purpose: "fallbackIntelligence",

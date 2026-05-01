@@ -399,9 +399,17 @@ const DailyTrendDetail = ({ keyword, onClose, onDiveDeeper }: { keyword: string,
                   <h4 className="text-[10px] font-black text-white uppercase tracking-[0.4em] flex items-center gap-2">
                     <Sparkles size={14} className="text-[#53A9EF]" /> Live Content References
                   </h4>
-                  <p className="text-[10px] text-[#555870] font-medium leading-relaxed max-w-lg">
-                    Real-world examples analyzed by AI for production strategy.
-                  </p>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <p className="text-[10px] text-[#555870] font-medium leading-relaxed max-w-lg">
+                      Real-world examples analyzed by AI for production strategy.
+                    </p>
+                    {/* Budget Protection Message */}
+                    {detail?.references?.find((r: any) => r._apifySkipReason && r._apifySkipReason.includes('budget')) && (
+                      <span className="text-[9px] text-amber-500/80 font-black uppercase tracking-widest italic bg-amber-500/5 px-3 py-1 rounded-full border border-amber-500/10">
+                        ⚠️ Instagram skipped: {detail.references.find((r: any) => r._apifySkipReason)._apifySkipReason.replace(/-/g, ' ')}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 {detail?.references && detail.references.length > 0 ? (

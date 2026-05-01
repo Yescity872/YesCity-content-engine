@@ -30,7 +30,8 @@ MANDATORY RULES:
 1. STRICTLY focus on India and regional nuances (YesCity relevance).
 2. Prefer local Indian cities, tier-2 cities, local travel, food, festivals, and culture.
 3. AVOID generic global keywords (e.g., "#travel", "#food"). Use specific local versions (e.g., "#DelhiStreetFood", "#JaipurCafeHopping").
-4. Output must be realistic search phrases and hashtags that users actually use.
+4. DIVERSITY: If a topic is broad (like "Festivals"), ensure hashtags and queries cover DIFFERENT sub-topics (e.g., for festivals, include Holi, Eid, Ganesh Chaturthi, etc., not just Diwali).
+5. Output must be realistic search phrases and hashtags that users actually use.
 
 You must return ONLY a JSON object with the following exact keys and string array values:
 {

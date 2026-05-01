@@ -2,11 +2,11 @@ import { connectToDatabase } from "@/lib/mongodb";
 import TrendReference, { ITrendReference } from "@/models/TrendReference";
 import { searchYouTubeReferences, YouTubeReference } from "./youtubeTrendService";
 import { scrapeWithPicuki } from "./sourceAdapters/instagramPicukiAdapter";
-import { scrapeWithPuppeteer } from "./sourceAdapters/instagramPuppeteerAdapter";
 import { scrapeWithSnapscrape } from "./sourceAdapters/instagramSnapscrapeAdapter";
 import { scrapeWithInstaTouch, InstagramScrapedReference } from "./sourceAdapters/instagramInstaTouchAdapter";
 import { scrapeWebNews, WebScrapedReference } from "./sourceAdapters/webNewsAdapter";
 import { aiRouter } from "./ai/aiRouter";
+import { filterAndRankReferences } from "./relevanceEngine";
 
 interface LiveReferenceInput {
   topicId: string;
@@ -25,131 +25,107 @@ export async function getLiveReferencesForTopic(input: LiveReferenceInput): Prom
   await connectToDatabase();
 
   // 1. Check Cache
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const existing = await TrendReference.find({ 
     topicId, 
-    expiresAt: { $gt: new Date() } 
+    createdAt: { $gt: oneDayAgo } 
   });
   
   if (existing.length >= 3) {
     console.log(`[LiveRefs] Cache HIT for topic: ${topicId}`);
-    return existing;
+    return existing.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0)).slice(0, 5);
   }
 
   console.log(`[LiveRefs] Cache MISS. Fetching fresh references for: ${topic}`);
   const allReferences: any[] = [];
   const usedUrls = new Set<string>();
 
-  // 3. Parallel Search Chain (YouTube + Instagram + Web)
-  console.log(`[LiveRefs] Launching parallel adapters for: ${topic}`);
-  
-  const igTags = topicExpansion?.instagramHashtags || [`#${topic.replace(/\s+/g, '')}`];
+  // 2. Fetch YouTube & Web (Priority Sources)
   const youtubeQueries = topicExpansion?.youtubeQueries || [topic];
+  const ytResults = await Promise.all(
+    youtubeQueries.slice(0, 2).map((q: string) => searchYouTubeReferences(topic, [q], region).catch(() => []))
+  );
+  const webResults = await scrapeWebNews(topic, category).catch(() => []);
 
-  // We run the top-tier adapters in parallel
-  const searchPromises = [
-    searchYouTubeReferences(topic, youtubeQueries, region).catch(() => []),
-    scrapeWithPicuki(igTags[0], 3).catch(() => []), // Picuki is our best IG bet
-    scrapeWebNews(topic, category).catch(() => [])
-  ];
+  // Add YT & Web to collection
+  [...ytResults.flat(), ...webResults].forEach(res => {
+    if (res && res.url && !usedUrls.has(res.url)) {
+      allReferences.push(res);
+      usedUrls.add(res.url);
+    }
+  });
 
-  const results = await Promise.all(searchPromises);
-  
-  for (const batch of results) {
-    for (const res of batch) {
-      if (!usedUrls.has(res.url)) {
+  // 3. Instagram Booster (Apify) - Only if budget allows and we need more diversity
+  let apifySkipReason = "none";
+  const { scrapeInstagramWithApify } = await import("./sourceAdapters/apifyInstagramAdapter");
+  const igResults = await scrapeInstagramWithApify(topicId, topic);
+  apifySkipReason = igResults.skipReason;
+
+  if (igResults.success && igResults.references.length > 0) {
+    igResults.references.forEach(res => {
+      if (res && res.url && !usedUrls.has(res.url)) {
         allReferences.push(res);
         usedUrls.add(res.url);
       }
+    });
+  }
+
+  // 4. Relevance Scoring & Selection (Targeted Mix)
+  // Sort by score first
+  const scoredRefs = filterAndRankReferences(allReferences, topic, region);
+  
+  const youtubeRefs = scoredRefs.filter(r => r.platform === "youtube").slice(0, 3);
+  const instagramRefs = scoredRefs.filter(r => r.platform === "instagram").slice(0, 2);
+  const webRefs = scoredRefs.filter(r => r.platform === "web").slice(0, 2);
+
+  const selectedRefs = [...youtubeRefs, ...instagramRefs, ...webRefs];
+  const validReferences: ITrendReference[] = [];
+  
+  for (const ref of selectedRefs) {
+    try {
+      const aiNote = await generateAiMarketingNote(topic, ref);
+      
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      const saved = await TrendReference.findOneAndUpdate(
+        { url: ref.url },
+        {
+          ...ref,
+          topicId,
+          topic,
+          relevanceScore: ref.score,
+          aiMarketingNote: aiNote,
+          expiresAt
+        },
+        { upsert: true, new: true }
+      );
+      validReferences.push(saved);
+    } catch (err) {
+      console.error(`[LiveRefs] Failed to save/note reference: ${ref.url}`, err);
     }
   }
 
-  // 4. Secondary Fallbacks (only if still empty)
-  if (allReferences.length < 2) {
-    console.log(`[LiveRefs] Low results. Trying Puppeteer fallback...`);
-    const puppeteerResults = await scrapeWithPuppeteer(igTags[0], 3).catch(() => []);
-    for (const res of puppeteerResults) {
-      if (!usedUrls.has(res.url)) {
-        allReferences.push(res);
-        usedUrls.add(res.url);
-      }
-    }
+  // 5. Final Result set (Deduplicated and Sorted)
+  const results = validReferences
+    .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+
+  // Inject skip reason for UI if needed
+  if (results.length > 0 && apifySkipReason !== "none" && apifySkipReason !== "cache-hit") {
+    (results[0] as any)._apifySkipReason = apifySkipReason;
   }
 
-  // 5. Relevance Scoring & AI Note Generation
-  const validReferences: any[] = [];
-  
-  for (const ref of allReferences) {
-    const score = calculateRelevanceScore(ref, topic, region);
-    if (score >= 50) { // Threshold
-      try {
-        const aiNote = await generateAiMarketingNote(topic, ref);
-        
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24);
-
-        const saved = await TrendReference.findOneAndUpdate(
-          { url: ref.url },
-          {
-            ...ref,
-            topicId,
-            topic,
-            relevanceScore: score,
-            aiMarketingNote: aiNote,
-            expiresAt
-          },
-          { upsert: true, new: true }
-        );
-        validReferences.push(saved);
-      } catch (err) {
-        console.error(`[LiveRefs] Failed to save/note reference: ${ref.url}`, err);
-      }
-    } else {
-      console.log(`[LiveRefs] Discarded low-score reference: ${ref.url} (Score: ${score})`);
-    }
-
-    if (validReferences.length >= 8) break; // Cap
-  }
-
-  return validReferences;
-}
-
-/**
- * Simple relevance scoring logic.
- */
-function calculateRelevanceScore(ref: any, topic: string, region: string): number {
-  let score = 50; // Base
-  
-  const textToAnalyze = `${ref.title || ""} ${ref.description || ""}`.toLowerCase();
-  const topicTerms = topic.toLowerCase().split(" ");
-  
-  // Topic Match
-  let matchCount = 0;
-  for (const term of topicTerms) {
-    if (textToAnalyze.includes(term)) matchCount++;
-  }
-  score += (matchCount / topicTerms.length) * 30;
-
-  // Region Match
-  if (region === "IN") {
-    const indiaTerms = ["india", "mumbai", "delhi", "bangalore", "desi", "local", "street", "food"];
-    if (indiaTerms.some(term => textToAnalyze.includes(term))) score += 15;
-  }
-
-  // Quality Penalty
-  if (!ref.thumbnailUrl) score -= 20;
-  if (!ref.title && !ref.description) score -= 30;
-
-  return Math.min(100, Math.max(0, score));
+  return results;
 }
 
 /**
  * Generates an AI Marketing Note using the AI Router.
  */
-async function generateAiMarketingNote(topic: string, ref: any): Promise<string> {
+async function generateAiMarketingNote(topic: string, ref: YouTubeReference | InstagramScrapedReference | WebScrapedReference): Promise<string> {
   try {
     const result = await aiRouter.generateStructured({
       purpose: "trendDetail",
-      systemPrompt: "You are a YesCity production strategist. Explain exactly how this external reference (YouTube/IG/Web) can inspire a YesCity content package for an Indian city guide. Focus on the visual hook, editing style, or local angle.",
+      systemPrompt: "You are a YesCity production strategist. Explain how this reference inspires content. Focus on visual hooks and local angles. Return ONLY JSON in this format: { \"instruction\": \"3-sentence strategy\" }. Do not include any other text.",
       userPrompt: `Topic: ${topic}\nReference Title: ${ref.title || "Social Media Post"}\nReference Context: ${ref.description || "N/A"}`,
       inputForCache: { topic, url: ref.url }
     });
