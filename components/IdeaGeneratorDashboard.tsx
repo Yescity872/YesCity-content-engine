@@ -145,7 +145,7 @@ export function IdeaGeneratorDashboard() {
             <div className="flex items-center gap-3 mb-6">
               <Layout className="text-[#53A9EF]" size={20} />
               <h3 className="text-xl font-bold text-white">Static & Carousel Posts</h3>
-              <span className="text-xs font-bold text-[#555870] bg-[#1A1D27] px-3 py-1 rounded-full border border-[#2A2D3E]">5 STRATEGIES</span>
+              <span className="text-xs font-bold text-[#555870] bg-[#1A1D27] px-3 py-1 rounded-full border border-[#2A2D3E]">{(ideas.postIdeas?.length || 0)} STRATEGIES</span>
             </div>
 
             <div className="space-y-4">
@@ -172,7 +172,7 @@ export function IdeaGeneratorDashboard() {
             <div className="flex items-center gap-3 mb-6">
               <Video className="text-[#F87171]" size={20} />
               <h3 className="text-xl font-bold text-white">Reels & Short Video</h3>
-              <span className="text-xs font-bold text-[#555870] bg-[#1A1D27] px-3 py-1 rounded-full border border-[#2A2D3E]">5 STRATEGIES</span>
+              <span className="text-xs font-bold text-[#555870] bg-[#1A1D27] px-3 py-1 rounded-full border border-[#2A2D3E]">{(ideas.reelIdeas?.length || 0)} STRATEGIES</span>
             </div>
 
             <div className="space-y-4">
@@ -181,6 +181,7 @@ export function IdeaGeneratorDashboard() {
                   key={`reel-${idx}`} 
                   idea={idea} 
                   type="reel" 
+                  idx={idx}
                   isExpanded={expandedId === `reel-${idx}`}
                   onToggle={() => setExpandedId(expandedId === `reel-${idx}` ? null : `reel-${idx}`)}
                 />
@@ -291,7 +292,9 @@ function IdeaCard({ idea, type, idx, isExpanded, onToggle }: { idea: any, type: 
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Sparkles size={14} className="text-[#53A9EF]" />
-                    <span className="text-[10px] font-black text-[#53A9EF] uppercase tracking-widest">AI Asset Generation Prompt</span>
+                    <span className="text-[10px] font-black text-[#53A9EF] uppercase tracking-widest">
+                      {type === 'reel' ? 'AI Video Generation Prompt' : 'AI Image Generation Prompt'}
+                    </span>
                   </div>
                   <button 
                     onClick={() => {

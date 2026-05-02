@@ -36,13 +36,17 @@ export async function generateQuickIdeas(input: QuickIdeaInput) {
 
   const systemPrompt = `You are the Lead Creative Director for YesCity. 
   Your goal is to provide a COMPLETE production roadmap. 
+  - YOU MUST GENERATE EXACTLY 5 POST IDEAS AND EXACTLY 5 REEL IDEAS. 
+  - DO NOT return fewer than 5 ideas for each category.
   
   CRITICAL RULES FOR EXECUTION STEPS & SCENE BREAKDOWNS:
   - DO NOT tell the user to 'Research', 'Find', 'Plan', or 'Prepare'. 
   - YOU must provide the research. If the topic is 'Best cafes', you MUST NAME 3 real or highly probable cafes. 
-  - Every step must be an ACTION. (e.g., 'Go to [Location Name]', 'Film the [Specific Object] from a low angle', 'Say these exact words: [Dialogue]').
+  - Every step must be an ACTION. (e.g., 'Go to [Location Name]', 'Photograph the [Specific Object]', 'Take a static shot of [Item]').
+  - For POSTS: Use words like 'Photograph', 'Capture static shot', 'Create graphic'.
+  - For REELS: Use words like 'Film', 'Record', 'Camera movement'.
   - If you don't have real-time data for a niche, use your internal knowledge to suggest the most ICONIC or LIKELY spots/actions.
-  - The user should be able to start filming immediately without opening Google.
+  - The user should be able to start filming/shooting immediately without opening Google.
 
   EACH POST IDEA MUST INCLUDE:
   - title
@@ -51,10 +55,10 @@ export async function generateQuickIdeas(input: QuickIdeaInput) {
   - caption
   - CTA
   - hashtags
-  - executionSteps (Min 3 CONCRETE, DATA-RICH steps. NAME locations/items)
+  - executionSteps (Min 3 CONCRETE, DATA-RICH steps focused on PHOTOGRAPHY and STATIC shots. NAME locations/items)
   - difficulty
   - estimatedTime
-  - aiPrompt (A 100-word professional VFX prompt including camera lens e.g. 35mm, lighting style e.g. Volumetric, and EXACT scene details. DO NOT BE GENERIC.)
+  - aiPrompt (A 100-word professional high-resolution PHOTOGRAPHIC prompt. Mention 'Photorealistic', '8k', '35mm lens', 'Studio lighting'. MUST BE A STATIC IMAGE PROMPT, NOT A VIDEO.)
 
   EACH REEL IDEA MUST INCLUDE:
   - title
@@ -67,12 +71,12 @@ export async function generateQuickIdeas(input: QuickIdeaInput) {
   - editingStyle
   - difficulty
   - estimatedTime
-  - aiPrompt (A 100-word professional video prompt with camera movement instructions e.g. FPV drone, cinematic lighting, and exact motion details.)
+  - aiPrompt (A 100-word professional VIDEO prompt with camera movement instructions e.g. FPV drone, cinematic lighting, and exact motion details.)
 
   Return JSON structure:
   {
     "postIdeas": [
-      { "title": "...", "concept": "...", "aiPrompt": "Professional VFX prompt here...", ... }
+      { "title": "...", "concept": "...", "aiPrompt": "Photographic static image prompt here...", ... }
     ],
     "reelIdeas": [
       { "title": "...", "concept": "...", "aiPrompt": "Professional Video prompt here...", ... }
@@ -95,7 +99,8 @@ export async function generateQuickIdeas(input: QuickIdeaInput) {
       purpose: "quickIdeaUpgrade",
       systemPrompt,
       userPrompt,
-      inputForCache: input
+      inputForCache: input,
+      forceRefresh: true
     });
 
     await IdeaCache.create({ key: cacheKey, data: result });
