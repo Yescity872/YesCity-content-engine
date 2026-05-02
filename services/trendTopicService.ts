@@ -66,10 +66,17 @@ Return ONLY a JSON object with key "topics".`;
     const randomSeed = Math.random().toString(36).substring(7);
     const response = await aiRouter.generateStructured({
       purpose: "topicDiscovery",
-      systemPrompt: `${systemPrompt}\n\nSeed: ${randomSeed}. Pick DIFFERENT topics than usual if possible.`,
+      systemPrompt: `${systemPrompt}\n\nSeed: ${randomSeed}. 
+      CRITICAL: Do NOT repeat topics from previous sessions. 
+      Vary the niche sub-topics (e.g., if you picked 'Navratri Food' last time, pick 'Navratri Street Fashion' or 'Dandiya Night Hacks' this time).
+      Be extremely specific.`,
       userPrompt: `Signals: ${allSignals.join(" | ")}`,
-      inputForCache: { weekId, seed: randomSeed, signalsHash: crypto.createHash("md5").update(allSignals.join("|")).digest("hex") },
-      forceRefresh: forceRefresh
+      inputForCache: { 
+        weekId, 
+        seed: randomSeed, 
+        signalsHash: crypto.createHash("md5").update(allSignals.join("|")).digest("hex") 
+      },
+      forceRefresh: true // Always force a fresh AI generation for topics to ensure variety
     });
 
     topicsList = Array.isArray(response.topics) ? response.topics : [];

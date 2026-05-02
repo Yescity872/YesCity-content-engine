@@ -27,48 +27,57 @@ export interface QuickIdeaInput {
 export async function generateQuickIdeas(input: QuickIdeaInput) {
   await connectToDatabase();
   
-  const cacheKey = JSON.stringify(input);
-  const cached = await IdeaCache.findOne({ key: cacheKey });
-  if (cached) return cached.data;
+  // Temporarily disabling cache to ensure fresh high-quality prompts
+  // const cached = await IdeaCache.findOne({ key: cacheKey });
+  // if (cached) return cached.data;
 
   console.log(`[QuickIdea] Generating detailed ideas for: ${input.topic}`);
 
-  const systemPrompt = `You are the Lead Creative Director for YesCity.
-  Generate 10 highly detailed production ideas (5 Static/Carousel Posts and 5 Reels/Shorts) based on the user's input.
+  const systemPrompt = `You are the Lead Creative Director for YesCity. 
+  Your goal is to provide a COMPLETE production roadmap. 
   
+  CRITICAL RULES FOR EXECUTION STEPS & SCENE BREAKDOWNS:
+  - DO NOT tell the user to 'Research', 'Find', 'Plan', or 'Prepare'. 
+  - YOU must provide the research. If the topic is 'Best cafes', you MUST NAME 3 real or highly probable cafes. 
+  - Every step must be an ACTION. (e.g., 'Go to [Location Name]', 'Film the [Specific Object] from a low angle', 'Say these exact words: [Dialogue]').
+  - If you don't have real-time data for a niche, use your internal knowledge to suggest the most ICONIC or LIKELY spots/actions.
+  - The user should be able to start filming immediately without opening Google.
+
   EACH POST IDEA MUST INCLUDE:
   - title
   - concept
-  - hook (The opening visual/text)
-  - caption (Full social media copy)
-  - CTA (Call to action)
+  - hook
+  - caption
+  - CTA
   - hashtags
-  - whyItWorks (Psychological/Marketing trigger)
-  - executionSteps (Bullet points for the creator)
-  - difficulty (Beginner/Intermediate/Advanced)
-  - estimatedTime (e.g. 2 hours)
-  - assignedRole (Who should do this: Photographer, Designer, etc)
+  - executionSteps (Min 3 CONCRETE, DATA-RICH steps. NAME locations/items)
+  - difficulty
+  - estimatedTime
+  - aiPrompt (A 100-word professional VFX prompt including camera lens e.g. 35mm, lighting style e.g. Volumetric, and EXACT scene details. DO NOT BE GENERIC.)
 
   EACH REEL IDEA MUST INCLUDE:
   - title
   - concept
-  - hook (First 3 seconds)
-  - sceneBreakdown (Timestamped sequence)
+  - hook
+  - sceneBreakdown (Min 3 timestamped scenes)
   - caption
   - CTA
   - hashtags
-  - editingStyle (e.g. Fast-cuts, Cinematic, ASMR)
-  - whyItWorks
+  - editingStyle
   - difficulty
   - estimatedTime
-  - assignedRole
+  - aiPrompt (A 100-word professional video prompt with camera movement instructions e.g. FPV drone, cinematic lighting, and exact motion details.)
 
   Return JSON structure:
   {
-    "postIdeas": [...],
-    "reelIdeas": [...],
+    "postIdeas": [
+      { "title": "...", "concept": "...", "aiPrompt": "Professional VFX prompt here...", ... }
+    ],
+    "reelIdeas": [
+      { "title": "...", "concept": "...", "aiPrompt": "Professional Video prompt here...", ... }
+    ],
     "recommendedPlatforms": ["platform1", "platform2"],
-    "contentCalendarSuggestion": "1-sentence tip on timing"
+    "contentCalendarSuggestion": "..."
   }`;
 
   const userPrompt = `

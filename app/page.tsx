@@ -226,7 +226,7 @@ export default function ChatAssistant() {
         if (statusData.success && statusData.topics && statusData.topics.length > 0) {
           const totalCount = statusData.topics.length;
           const readyWithDataCount = statusData.topics.filter((t: any) => 
-            t.status === "ready" && t.references?.length >= 3
+            t.status === "ready" && t.references?.length >= 1
           ).length;
           
           let dynamicContent = "Identifying trends...";
@@ -244,7 +244,7 @@ export default function ChatAssistant() {
           }));
 
           const allFullyReady = statusData.topics.every((t: any) => 
-            (t.status === "ready" && t.references?.length >= 3) || t.status === "failed"
+            (t.status === "ready" && t.references?.length >= 1) || t.status === "failed"
           );
 
           // Success condition: at least 3 topics ready AND we've polled for at least 15s
@@ -435,7 +435,7 @@ export default function ChatAssistant() {
                   <div className="mt-6">
                     {(() => {
                       const readyTopics = m.data?.filter((t: any) => 
-                        t.status === "ready" && t.references?.length >= 3
+                        t.status === "ready" && t.references?.length >= 1
                       ) || [];
                       
                       const isStillProcessing = m.data && 

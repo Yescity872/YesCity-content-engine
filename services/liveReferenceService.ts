@@ -24,14 +24,15 @@ export async function getLiveReferencesForTopic(input: LiveReferenceInput): Prom
   
   await connectToDatabase();
 
-  // 1. Check Cache
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  // 1. Check Cache (Reduced to 4 hours for better variety)
+  const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
   const existing = await TrendReference.find({ 
     topicId, 
-    createdAt: { $gt: oneDayAgo } 
+    createdAt: { $gt: fourHoursAgo } 
   });
   
-  if (existing.length >= 3) {
+  // Only use cache if we have enough results
+  if (existing.length >= 4) {
     console.log(`[LiveRefs] Cache HIT for topic: ${topicId}`);
     return existing.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0)).slice(0, 5);
   }
@@ -55,30 +56,14 @@ export async function getLiveReferencesForTopic(input: LiveReferenceInput): Prom
     }
   });
 
-  // 3. Instagram Booster (Apify) - Only if budget allows and we need more diversity
-  let apifySkipReason = "none";
-  const { scrapeInstagramWithApify } = await import("./sourceAdapters/apifyInstagramAdapter");
-  const igResults = await scrapeInstagramWithApify(topicId, topic);
-  apifySkipReason = igResults.skipReason;
-
-  if (igResults.success && igResults.references.length > 0) {
-    igResults.references.forEach(res => {
-      if (res && res.url && !usedUrls.has(res.url)) {
-        allReferences.push(res);
-        usedUrls.add(res.url);
-      }
-    });
-  }
-
-  // 4. Relevance Scoring & Selection (Targeted Mix)
+  // 3. Relevance Scoring & Selection (Targeted Mix)
   // Sort by score first
   const scoredRefs = filterAndRankReferences(allReferences, topic, region);
   
-  const youtubeRefs = scoredRefs.filter(r => r.platform === "youtube").slice(0, 3);
-  const instagramRefs = scoredRefs.filter(r => r.platform === "instagram").slice(0, 2);
+  const youtubeRefs = scoredRefs.filter(r => r.platform === "youtube").slice(0, 4);
   const webRefs = scoredRefs.filter(r => r.platform === "web").slice(0, 2);
 
-  const selectedRefs = [...youtubeRefs, ...instagramRefs, ...webRefs];
+  const selectedRefs = [...youtubeRefs, ...webRefs];
   const validReferences: ITrendReference[] = [];
   
   for (const ref of selectedRefs) {
@@ -106,14 +91,9 @@ export async function getLiveReferencesForTopic(input: LiveReferenceInput): Prom
     }
   }
 
-  // 5. Final Result set (Deduplicated and Sorted)
+  // 4. Final Result set (Deduplicated and Sorted)
   const results = validReferences
     .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-
-  // Inject skip reason for UI if needed
-  if (results.length > 0 && apifySkipReason !== "none" && apifySkipReason !== "cache-hit") {
-    (results[0] as any)._apifySkipReason = apifySkipReason;
-  }
 
   return results;
 }

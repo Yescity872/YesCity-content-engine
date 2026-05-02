@@ -149,15 +149,21 @@ export function IdeaGeneratorDashboard() {
             </div>
 
             <div className="space-y-4">
-              {ideas.postIdeas.map((idea: any, idx: number) => (
+              {ideas.postIdeas?.map((idea: any, idx: number) => (
                 <IdeaCard 
                   key={`post-${idx}`} 
                   idea={idea} 
                   type="post" 
+                  idx={idx}
                   isExpanded={expandedId === `post-${idx}`}
                   onToggle={() => setExpandedId(expandedId === `post-${idx}` ? null : `post-${idx}`)}
                 />
               ))}
+              {(!ideas.postIdeas || ideas.postIdeas.length === 0) && (
+                <div className="p-8 text-center border border-dashed border-[#2A2D3E] rounded-3xl text-[#555870]">
+                  No post ideas generated.
+                </div>
+              )}
             </div>
           </section>
 
@@ -170,7 +176,7 @@ export function IdeaGeneratorDashboard() {
             </div>
 
             <div className="space-y-4">
-              {ideas.reelIdeas.map((idea: any, idx: number) => (
+              {ideas.reelIdeas?.map((idea: any, idx: number) => (
                 <IdeaCard 
                   key={`reel-${idx}`} 
                   idea={idea} 
@@ -179,6 +185,11 @@ export function IdeaGeneratorDashboard() {
                   onToggle={() => setExpandedId(expandedId === `reel-${idx}` ? null : `reel-${idx}`)}
                 />
               ))}
+              {(!ideas.reelIdeas || ideas.reelIdeas.length === 0) && (
+                <div className="p-8 text-center border border-dashed border-[#2A2D3E] rounded-3xl text-[#555870]">
+                  No reel ideas generated.
+                </div>
+              )}
             </div>
           </section>
 
@@ -186,10 +197,10 @@ export function IdeaGeneratorDashboard() {
           <div className="p-8 rounded-[40px] bg-[#53A9EF]/5 border border-[#53A9EF]/10 flex flex-col md:flex-row gap-8 items-center">
             <div className="flex-1">
               <h4 className="text-lg font-bold text-white mb-2">Strategic Recommendation</h4>
-              <p className="text-sm text-[#8B90A7] leading-relaxed">{ideas.contentCalendarSuggestion}</p>
+              <p className="text-sm text-[#8B90A7] leading-relaxed">{ideas.contentCalendarSuggestion || "Start posting consistently to see better results."}</p>
             </div>
             <div className="flex gap-2">
-              {ideas.recommendedPlatforms.map((p: string, i: number) => (
+              {ideas.recommendedPlatforms?.map((p: string, i: number) => (
                 <span key={i} className="px-4 py-2 rounded-xl bg-[#1A1D27] border border-[#2A2D3E] text-xs font-bold text-white">
                   {p}
                 </span>
@@ -202,7 +213,7 @@ export function IdeaGeneratorDashboard() {
   );
 }
 
-function IdeaCard({ idea, type, isExpanded, onToggle }: { idea: any, type: "post" | "reel", isExpanded: boolean, onToggle: () => void }) {
+function IdeaCard({ idea, type, idx, isExpanded, onToggle }: { idea: any, type: "post" | "reel", idx: number, isExpanded: boolean, onToggle: () => void }) {
   return (
     <div className={`bg-[#1A1D27] border ${isExpanded ? 'border-[#53A9EF]/50' : 'border-[#2A2D3E]'} rounded-3xl overflow-hidden transition-all`}>
       <button 
@@ -253,29 +264,54 @@ function IdeaCard({ idea, type, isExpanded, onToggle }: { idea: any, type: "post
               <div>
                 <span className="text-[10px] font-bold text-[#53A9EF] uppercase tracking-[0.2em] block mb-3">Execution Steps</span>
                 <div className="space-y-2">
-                  {(idea.executionSteps || idea.sceneBreakdown || []).map((step: string, i: number) => (
+                  {(idea.executionSteps || idea.sceneBreakdown || []).map((step: any, i: number) => (
                     <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-[#0F111A] border border-[#2A2D3E]">
                       <div className="w-5 h-5 rounded-md bg-[#1A1D27] flex items-center justify-center text-[10px] font-bold text-[#53A9EF] shrink-0 border border-[#2A2D3E]">{i+1}</div>
-                      <p className="text-xs text-[#F0F2F8]">{step}</p>
+                      <div className="flex flex-col gap-0.5">
+                        {typeof step === 'object' && step.time && (
+                          <span className="text-[9px] font-black text-[#53A9EF] uppercase tracking-widest">{step.time}</span>
+                        )}
+                        <p className="text-xs text-[#F0F2F8]">
+                          {typeof step === 'object' 
+                            ? (
+                                <span className="flex flex-col gap-1">
+                                  <span>{step.step || step.instruction || step.scene || JSON.stringify(step)}</span>
+                                  {step.location && <span className="text-[10px] text-emerald-400 font-bold italic">📍 {step.location}</span>}
+                                </span>
+                              )
+                            : step}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                <div className="flex-1 p-4 rounded-2xl bg-[#53A9EF]/5 border border-[#53A9EF]/10">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Workflow size={12} className="text-[#53A9EF]" />
-                    <span className="text-[10px] font-bold text-[#53A9EF] uppercase">Assigned Role</span>
+              <div className="p-5 rounded-3xl bg-[#53A9EF]/5 border border-[#53A9EF]/20">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-[#53A9EF]" />
+                    <span className="text-[10px] font-black text-[#53A9EF] uppercase tracking-widest">AI Asset Generation Prompt</span>
                   </div>
-                  <span className="text-xs text-white font-bold">{idea.assignedRole}</span>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(idea.aiPrompt);
+                      const btn = document.getElementById(`copy-btn-${idx}-${type}`);
+                      if (btn) {
+                        btn.innerHTML = 'COPIED!';
+                        setTimeout(() => { btn.innerHTML = 'COPY'; }, 2000);
+                      }
+                    }}
+                    id={`copy-btn-${idx}-${type}`}
+                    className="text-[9px] font-black text-white bg-[#53A9EF] px-3 py-1 rounded-lg hover:bg-[#2B90E6] transition-all"
+                  >
+                    COPY
+                  </button>
                 </div>
-                <div className="flex-1 p-4 rounded-2xl bg-[#F87171]/5 border border-[#F87171]/10">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Zap size={12} className="text-[#F87171]" />
-                    <span className="text-[10px] font-bold text-[#F87171] uppercase">Strategy Hook</span>
-                  </div>
-                  <span className="text-xs text-white font-bold">{idea.whyItWorks.split(' ')[0]} Match</span>
+                <div className="relative group/prompt">
+                  <p className="text-[11px] text-[#F0F2F8] font-medium leading-relaxed bg-[#0F111A]/80 p-4 rounded-2xl border border-[#2A2D3E] group-hover/prompt:border-[#53A9EF]/30 transition-all italic">
+                    {idea.aiPrompt || "Cinematic shot, 8k resolution, highly detailed."}
+                  </p>
                 </div>
               </div>
 
