@@ -27,7 +27,8 @@ export interface QuickIdeaInput {
 export async function generateQuickIdeas(input: QuickIdeaInput) {
   await connectToDatabase();
   
-  // Temporarily disabling cache to ensure fresh high-quality prompts
+  const cacheKey = JSON.stringify(input);
+  // Temporarily disabling cache lookup to ensure fresh high-quality prompts
   // const cached = await IdeaCache.findOne({ key: cacheKey });
   // if (cached) return cached.data;
 
