@@ -1,13 +1,33 @@
-# 🚀 YesCity Content Engine
+# YesCity Content Engine
 
 **YesCity Content Engine** is an industry-grade, AI-powered platform designed to bridge the gap between emerging trends and high-impact content. It aggregates real-time data from multiple social and news sources, analyzes them using state-of-the-art LLMs, and generates actionable content ideas for creators and brands.
 
 ---
 
-## 🌟 Key Features
+## Core Functional Pillars
 
-- **Multi-Source Trend Discovery**: Aggregates trends from YouTube, Google Trends, NewsAPI.ai, GNews, and social media scrapers (Instagram, X, LinkedIn).
-- **AI-Driven Analysis**: Leverages **Groq (Llama-3)** and **Sarvam AI** for lightning-fast trend expansion, relevance scoring, and content idea generation.
+1.  **Trend Monitoring & Discovery (Multi-Source)**
+    *   Automatically aggregates real-time trending topics from YouTube, Google Trends, and various News APIs (NewsAPI.ai, GNews, Mediastack).
+    *   Ensures users are ahead of the curve by identifying viral content before it reaches saturation.
+
+2.  **AI-Powered Content Idea Generation**
+    *   Utilizes Groq (Llama-3) and Sarvam AI to transform raw trends into specific, actionable content formats like Instagram Reels, LinkedIn Posts, and YouTube Shorts.
+    *   Reduces the time from trend identification to content conceptualization.
+
+3.  **Competitor & Market Intelligence**
+    *   Analyzes competitor performance and news updates via specialized adapters for Instagram, X (Twitter), and LinkedIn.
+    *   Identifies content gaps and strategic opportunities in the market.
+
+4.  **Live Reference & Fact-Checking Engine**
+    *   Leverages Playwright-based scrapers and live news feeds to gather context and verify facts.
+    *   Ensures AI-generated content is accurate, grounded in current events, and supported by real-world references.
+
+---
+
+## Key Features
+
+- **Multi-Source Trend Discovery**: Aggregates trends from YouTube, Google Trends, NewsAPI.ai, GNews, and social media scrapers.
+- **AI-Driven Analysis**: Leverages Groq (Llama-3) and Sarvam AI for lightning-fast trend expansion, relevance scoring, and content idea generation.
 - **Indic Language Support**: Native support for Indian languages via Sarvam AI integration.
 - **Intelligent Relevance Engine**: Filters and ranks trends based on custom relevance metrics.
 - **Specialized Workflows**: Dedicated engines for competitor insights, quick idea generation, and trend detail deep-dives.
@@ -15,7 +35,7 @@
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: [Next.js 15+](https://nextjs.org/) (App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
@@ -29,7 +49,7 @@
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 ├── app/                # Next.js App Router (UI & API Routes)
@@ -47,7 +67,7 @@
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -73,7 +93,7 @@
    ```bash
    cp .env.local.example .env.local
    ```
-   *See the comments in `.env.local` for details on each key.*
+   *See the comments in .env.local for details on each key.*
 
 4. **Run the development server**:
    ```bash
@@ -82,7 +102,7 @@
 
 ---
 
-## 📜 Available Scripts
+## Available Scripts
 
 - `npm run dev`: Starts the development server with hot-reload.
 - `npm run build`: Compiles the application for production.
@@ -92,7 +112,7 @@
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 1. **Create a Branch**: `git checkout -b feature/amazing-feature`
 2. **Commit Changes**: `git commit -m 'Add some amazing feature'`
@@ -102,14 +122,14 @@
 ### Code Standards
 - Always use TypeScript for new files.
 - Follow the established service-adapter pattern for new data sources.
-- Ensure all environment variables are documented in `.env.local.example`.
+- Ensure all environment variables are documented in .env.local.example.
 
 ---
 
-## 📄 License
+## License
 
 This project is private and proprietary. Unauthorized copying or distribution is strictly prohibited.
 
 ---
 
-**Built with ❤️ by the YesCity Team.**
+**Built by the YesCity Team.**
